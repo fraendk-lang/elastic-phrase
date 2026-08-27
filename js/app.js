@@ -72,6 +72,9 @@
   var swingVal = document.getElementById("swingVal");
   var humanizeSlider = document.getElementById("humanizeSlider");
   var humanizeVal = document.getElementById("humanizeVal");
+  var mutateRhythmBtn = document.getElementById("mutateRhythmBtn");
+  var mutateMelodyBtn = document.getElementById("mutateMelodyBtn");
+  var mutateBothBtn = document.getElementById("mutateBothBtn");
 
   function feelOptions() {
     return { swing: state.swing, humanize: state.humanize, seed: state.seed };
@@ -440,6 +443,9 @@
       exportMidiBtn.disabled = true;
       playBtn.disabled = true;
       shareComposerBtn.disabled = true;
+      mutateRhythmBtn.disabled = true;
+      mutateMelodyBtn.disabled = true;
+      mutateBothBtn.disabled = true;
       refreshPianoRoll([], state.bars, 4, state.euclidean.enabled ? state.euclidean : null);
       return;
     }
@@ -480,6 +486,17 @@
     exportMidiBtn.disabled = false;
     playBtn.disabled = false;
     shareComposerBtn.disabled = false;
+    mutateRhythmBtn.disabled = false;
+    mutateMelodyBtn.disabled = false;
+    mutateBothBtn.disabled = false;
+  }
+
+  function mutatePhraseMode(mode) {
+    if (!state.result) return;
+    stopPlayback();
+    state.seed = (state.seed + 1) & 0xffff;
+    state.result = ElasticPhraseEngine.mutatePhrase(state.result, mode, state.seed);
+    renderResult();
   }
 
   function generatePhrase() {
@@ -547,6 +564,10 @@
     });
     window.open(ElasticHandoff.buildComposerUrl(ctx), "_blank", "noopener,noreferrer");
   });
+
+  mutateRhythmBtn.addEventListener("click", function () { mutatePhraseMode("rhythm"); });
+  mutateMelodyBtn.addEventListener("click", function () { mutatePhraseMode("melody"); });
+  mutateBothBtn.addEventListener("click", function () { mutatePhraseMode("both"); });
 
   shareLinkBtn.addEventListener("click", function () {
     var url = ElasticHandoff.buildShareUrl(state, window.location.origin + window.location.pathname);

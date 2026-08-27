@@ -4,6 +4,11 @@ Monophonic melody generator — sibling to [Elastic Composer](https://elasticcom
 
 **Live:** [elastic-phrase.vercel.app](https://elastic-phrase.vercel.app)
 
+## v0.7 — Blues v2 + Phrase mutieren
+
+- **Blues** — Shuffle-Achtel, Blue Notes, Call & Response (Takt 1–2 → 3–4)
+- **↻ Rhythmus / Melodie / Beides** — Phrase variieren ohne kompletten Neustart
+
 ## v0.6 — Akkord-Input, Feel, Pop Hook
 
 - **Akkord-Text** — `Am7 | D7 | Gmaj7 | C` direkt eingeben (ohne Composer)
@@ -75,3 +80,4 @@ Planned: **elasticphrase.app** (purchase early September 2026). Setup steps: [`d
 - v1.2: Web MIDI preview, more styles (pop hook)
 - v1.4: Bebop style + share links ✓
 - v1.5: chord text input, swing/humanize, pop hook ✓
+- v1.6: blues v2 + phrase mutation ✓

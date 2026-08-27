@@ -102,7 +102,7 @@
         <div class="brand-dot"></div>
         <div class="brand-name">Elastic Universe</div>
       </div>
-      <div class="badge">v1.5</div>
+      <div class="badge">v1.6</div>
     </header>
 
     <h1>Elastic <span>Phrase</span></h1>
@@ -174,9 +174,9 @@
         <button class="style-btn active" data-style="modal-jazz">Modal Jazz</button>
         <button class="style-btn" data-style="bebop">Bebop</button>
         <button class="style-btn" data-style="pop-hook">Pop Hook</button>
-        <button class="style-btn" data-style="blues">Blues (Basis)</button>
+        <button class="style-btn" data-style="blues">Blues</button>
       </div>
-      <div class="mode-hint">Pop Hook: kurzes 2-Takt-Motiv, Pentatonik, Wiederholung mit Variation.</div>
+      <div class="mode-hint">Blues: Shuffle-Raster, Blue Notes (♭3/♭5/♭7), Call &amp; Response zwischen Takt 1–2 und 3–4.</div>
       <div class="slider-row">
         <label>LÄNGE</label>
         <input type="range" id="barsSlider" min="2" max="8" value="4">
@@ -237,6 +237,11 @@
         <div class="key-readout" id="phraseMeta">Noch keine Phrase — oben generieren.</div>
       </div>
       <canvas id="pianoRoll" aria-label="Piano-Roll Vorschau"></canvas>
+      <div class="toolbar" style="margin-top:12px">
+        <button class="ghost" id="mutateRhythmBtn" disabled title="Rhythmus variieren, Melodie behalten">↻ Rhythmus</button>
+        <button class="ghost" id="mutateMelodyBtn" disabled title="Melodie variieren, Rhythmus behalten">↻ Melodie</button>
+        <button class="ghost" id="mutateBothBtn" disabled title="Rhythmus und Melodie leicht variieren">↻ Beides</button>
+      </div>
       <div class="note-list" id="noteList"></div>
     </div>
 

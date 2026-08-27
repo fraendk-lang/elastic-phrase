@@ -107,6 +107,33 @@ test("bebop chord-aware favors chord tones on targets", function () {
   assert.ok(res.notes.length > 8);
 });
 
+test("blues style applies shuffle cells", function () {
+  var res = engine.generatePhrase({ seed: 55, bars: 2, styleId: "blues", tonicPc: 0, modeId: "mixolydian" });
+  assert.equal(res.meta.styleId, "blues");
+  assert.ok(res.notes.length >= 8);
+  assert.ok(res.notes.some(function (n) { return n.durationBeats === 0.75 || n.durationBeats === 0.25; }));
+});
+
+test("mutatePhrase changes rhythm without full regen", function () {
+  var base = engine.generatePhrase({ seed: 12, bars: 2, styleId: "modal-jazz" });
+  var rhythm = engine.mutatePhrase(base, "rhythm", 99);
+  assert.equal(rhythm.meta.mutated, "rhythm");
+  assert.equal(rhythm.notes.length, base.notes.length);
+  var moved = rhythm.notes.some(function (n, i) {
+    return Math.abs(n.startBeat - base.notes[i].startBeat) > 0.001;
+  });
+  assert.ok(moved);
+});
+
+test("mutatePhrase changes melody steps", function () {
+  var base = engine.generatePhrase({ seed: 18, bars: 2, styleId: "pop-hook" });
+  var melody = engine.mutatePhrase(base, "melody", 101);
+  var changed = melody.notes.some(function (n, i) {
+    return n.midi !== base.notes[i].midi;
+  });
+  assert.ok(changed);
+});
+
 test("pop hook style uses pentatonic motion", function () {
   var res = engine.generatePhrase({ seed: 44, bars: 4, styleId: "pop-hook" });
   assert.equal(res.meta.styleId, "pop-hook");
