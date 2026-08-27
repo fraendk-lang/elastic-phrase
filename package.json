@@ -5,7 +5,7 @@
   "description": "Elastic Phrase — monophonic melody generator (Modal Jazz v1)",
   "scripts": {
     "start": "npx serve . -p 3344",
-    "test": "node --test test/euclid.test.js test/chords.test.js test/phrase-engine.test.js",
+    "test": "node --test test/euclid.test.js test/chords.test.js test/piano-roll.test.js test/phrase-engine.test.js",
     "test:e2e": "playwright test",
     "ci": "npm test && npm run test:e2e",
     "deploy": "vercel --prod"

@@ -56,6 +56,31 @@
   var euclidRhythmPreview = document.getElementById("euclidRhythmPreview");
   var euclidScalePreview = document.getElementById("euclidScalePreview");
 
+  function euclidDrawOpts(res) {
+    if (res && res.meta && res.meta.euclidean) {
+      return {
+        pulses: res.meta.euclidean.pulses,
+        steps: res.meta.euclidean.steps,
+        rotation: res.meta.euclidean.rotation,
+        scalePulses: res.meta.euclidean.scalePulses,
+        scaleRotation: res.meta.euclidean.scaleRotation,
+      };
+    }
+    if (state.euclidean.enabled) {
+      return state.euclidean;
+    }
+    return null;
+  }
+
+  function refreshPianoRoll(notes, rollBars, beatsPerBar, euclidOpts) {
+    pianoRoll.classList.toggle("compact", !euclidOpts);
+    ElasticPianoRoll.drawPianoRoll(pianoRoll, notes || [], {
+      bars: rollBars,
+      beatsPerBar: beatsPerBar || 4,
+      euclidean: euclidOpts,
+    });
+  }
+
   function updateEuclidPreview() {
     var rhythm = ElasticEuclid.euclidean(state.euclidean.pulses, state.euclidean.steps, state.euclidean.rotation);
     var scalePat = ElasticEuclid.euclidean(state.euclidean.scalePulses, 7, state.euclidean.scaleRotation);
@@ -65,12 +90,29 @@
     euclidStepsVal.textContent = String(state.euclidean.steps);
     euclidRotationVal.textContent = String(state.euclidean.rotation);
     euclidScalePulsesVal.textContent = state.euclidean.scalePulses + " / 7";
+
+    if (state.result) {
+      var rollBars = state.result.meta.chordAware
+        ? Math.ceil((state.result.meta.totalBeats || state.result.meta.bars * 4) / 4)
+        : state.result.meta.bars;
+      refreshPianoRoll(
+        state.result.notes,
+        rollBars,
+        state.result.meta.beatsPerBar,
+        euclidDrawOpts(state.result)
+      );
+    } else if (state.euclidean.enabled) {
+      refreshPianoRoll([], state.chords && state.chords.length ? Math.ceil(state.bars) : state.bars, 4, state.euclidean);
+    } else {
+      pianoRoll.classList.add("compact");
+    }
   }
 
   function setEuclidEnabled(on) {
     state.euclidean.enabled = on;
     euclidToggleBtn.classList.toggle("active", !on);
     euclidOnBtn.classList.toggle("active", on);
+    updateEuclidPreview();
   }
 
   function buildTonicPicker() {
@@ -237,7 +279,7 @@
       exportMidiBtn.disabled = true;
       playBtn.disabled = true;
       shareComposerBtn.disabled = true;
-      ElasticPianoRoll.drawPianoRoll(pianoRoll, [], { bars: state.bars });
+      refreshPianoRoll([], state.bars, 4, state.euclidean.enabled ? state.euclidean : null);
       return;
     }
 
@@ -273,10 +315,7 @@
       ? Math.ceil((res.meta.totalBeats || res.meta.bars * 4) / 4)
       : res.meta.bars;
 
-    ElasticPianoRoll.drawPianoRoll(pianoRoll, res.notes, {
-      bars: rollBars,
-      beatsPerBar: res.meta.beatsPerBar,
-    });
+    refreshPianoRoll(res.notes, rollBars, res.meta.beatsPerBar, euclidDrawOpts(res));
     exportMidiBtn.disabled = false;
     playBtn.disabled = false;
     shareComposerBtn.disabled = false;
