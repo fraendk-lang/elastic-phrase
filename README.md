@@ -4,6 +4,12 @@ Monophonic melody generator — sibling to [Elastic Composer](https://elasticcom
 
 **Live:** [elastic-phrase.vercel.app](https://elastic-phrase.vercel.app)
 
+## v0.9.1 — Phrasen-Nachschärfung
+
+- **Akkord-Auflösung** — Downbeats auf Grundton/Terz, Dominanten führen zur nächsten Stufe
+- **Phrasen-Kontur** — Taktbetonung, Atem vor Taktende, leises Ausklingen am Ende
+- **Bebop** — mehr chromatische Annäherungen vor Zieltönen
+
 ## v0.9 — Motiv-Sperre konfigurierbar + Piano-Roll
 
 - **MOTIV-Slider** — gesperrte Takte von 1–4 wählen (Button zeigt „🔒 Motiv NT“)

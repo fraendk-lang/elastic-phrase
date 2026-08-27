@@ -57,6 +57,35 @@ test("degreeToNearestMidi prefers small intervals", function () {
   assert.ok(Math.abs(near - 62) <= 2);
 });
 
+test("chord-aware cadence uses strong beats near changes", function () {
+  var res = engine.generatePhrase({
+    seed: 77,
+    styleId: "bebop",
+    chords: [
+      { rootPc: 2, qualityId: "m7", bassPc: 2, beats: 4 },
+      { rootPc: 7, qualityId: "7", bassPc: 7, beats: 4 },
+      { rootPc: 0, qualityId: "maj7", bassPc: 0, beats: 4 },
+    ],
+  });
+  var cadence = res.notes.filter(function (n) {
+    return n.startBeat >= 6.5 && n.startBeat <= 8.5;
+  });
+  assert.ok(cadence.length >= 2);
+  var downbeats = res.notes.filter(function (n) {
+    return Math.abs((n.startBeat % 4)) < 0.03;
+  });
+  assert.ok(downbeats.length >= 2);
+});
+
+test("polishPhrase accents downbeats", function () {
+  var raw = [
+    { midi: 60, startBeat: 0, durationBeats: 0.5, velocity: 80, role: "target" },
+    { midi: 62, startBeat: 0.5, durationBeats: 0.5, velocity: 80, role: "pass" },
+  ];
+  var out = engine.polishPhrase(raw, { styleId: "modal-jazz" });
+  assert.ok(out[0].velocity > out[1].velocity);
+});
+
 test("phraseToMidiBytes returns valid header", function () {
   var res = engine.generatePhrase({ seed: 99, bars: 2 });
   var bytes = midi.phraseToMidiBytes(res.notes, 120);
