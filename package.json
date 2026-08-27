@@ -1,6 +1,6 @@
 {
   "name": "elastic-phrase",
-  "version": "0.7.0",
+  "version": "0.9.0",
   "private": true,
   "description": "Elastic Phrase — monophonic melody generator with MusyngKite preview",
   "scripts": {

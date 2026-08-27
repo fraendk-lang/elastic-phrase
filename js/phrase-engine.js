@@ -84,6 +84,136 @@
     return list[Math.floor(rng() * list.length)];
   }
 
+  function resolveRegister(opts) {
+    opts = opts || {};
+    var minOct = Math.max(3, Math.min(6, opts.registerMin == null ? 4 : opts.registerMin));
+    var maxOct = Math.max(minOct, Math.min(6, opts.registerMax == null ? 5 : opts.registerMax));
+    return { minOct: minOct, maxOct: maxOct };
+  }
+
+  function clampMidiToRegister(midi, reg) {
+    var pc = scale.clampPc(midi);
+    var octNum = Math.floor(midi / 12) - 1;
+    octNum = Math.max(reg.minOct, Math.min(reg.maxOct, octNum));
+    return (octNum + 1) * 12 + pc;
+  }
+
+  function degreeToNearestMidi(tonicPc, modeId, degree, prevMidi, reg) {
+    reg = reg || resolveRegister({});
+    var best = scale.degreeToMidi(tonicPc, modeId, degree, reg.minOct);
+    var bestDist = prevMidi == null ? Math.abs(best - 60) : Math.abs(best - prevMidi);
+    for (var oct = reg.minOct; oct <= reg.maxOct; oct++) {
+      var midi = scale.degreeToMidi(tonicPc, modeId, degree, oct);
+      var dist = prevMidi == null ? Math.abs(midi - 60) : Math.abs(midi - prevMidi);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = midi;
+      }
+    }
+    return clampMidiToRegister(best, reg);
+  }
+
+  function pickSmoothDegree(rng, degreeOptions, prevMidi, tonicPc, modeId, reg) {
+    if (!degreeOptions || !degreeOptions.length) return 0;
+    if (prevMidi == null) return pick(rng, degreeOptions);
+    var ranked = degreeOptions
+      .map(function (deg) {
+        return {
+          deg: deg,
+          dist: Math.abs(degreeToNearestMidi(tonicPc, modeId, deg, prevMidi, reg) - prevMidi),
+        };
+      })
+      .sort(function (a, b) {
+        return a.dist - b.dist;
+      });
+    if (rng() > 0.68 && ranked.length > 1) {
+      return pick(rng, ranked.slice(0, Math.min(3, ranked.length))).deg;
+    }
+    return ranked[0].deg;
+  }
+
+  function articulationRatio(role, styleId) {
+    if (role === "target") {
+      if (styleId === "bebop") return 0.86;
+      if (styleId === "blues") return 0.9;
+      return 0.92;
+    }
+    if (role === "pass") {
+      if (styleId === "bebop") return 0.58;
+      if (styleId === "blues") return 0.68;
+      return 0.72;
+    }
+    if (role === "euclid") return 0.78;
+    return 0.85;
+  }
+
+  function polishPhrase(notes, opts) {
+    opts = opts || {};
+    if (!notes || !notes.length) return notes || [];
+    var styleId = opts.styleId || "modal-jazz";
+    var gap = styleId === "bebop" ? 0.025 : 0.035;
+    var sorted = notes
+      .slice()
+      .sort(function (a, b) {
+        return a.startBeat - b.startBeat || a.midi - b.midi;
+      });
+    var out = [];
+
+    for (var i = 0; i < sorted.length; i++) {
+      var n = sorted[i];
+      var nextStart = i + 1 < sorted.length ? sorted[i + 1].startBeat : null;
+      var slotEnd = nextStart != null ? nextStart - gap : n.startBeat + n.durationBeats;
+      var maxDur = Math.max(0.125, slotEnd - n.startBeat);
+      var dur = Math.min(n.durationBeats, maxDur) * articulationRatio(n.role, styleId);
+      dur = Math.max(0.125, Math.min(dur, maxDur));
+
+      var pos = sorted.length <= 1 ? 0.5 : i / (sorted.length - 1);
+      var arc = 1 + Math.sin(pos * Math.PI) * 0.1;
+      var vel = Math.round(Math.max(48, Math.min(118, (n.velocity || 90) * arc)));
+
+      out.push({
+        midi: n.midi,
+        startBeat: n.startBeat,
+        durationBeats: dur,
+        velocity: vel,
+        degree: n.degree,
+        role: n.role,
+        chordIndex: n.chordIndex,
+      });
+    }
+
+    return out;
+  }
+
+  function finalizePhrase(result, styleId) {
+    if (!result || !result.notes) return result;
+    result.notes = polishPhrase(result.notes, { styleId: styleId || (result.meta && result.meta.styleId) });
+    return result;
+  }
+
+  function mergeMotifLock(result, preserveNotes, lockBeats) {
+    if (!result || !preserveNotes || !preserveNotes.length || !lockBeats) return result;
+    var kept = preserveNotes
+      .filter(function (n) { return n.startBeat < lockBeats; })
+      .map(function (n) {
+        return {
+          midi: n.midi,
+          startBeat: n.startBeat,
+          durationBeats: n.durationBeats,
+          velocity: n.velocity,
+          degree: n.degree,
+          role: n.role,
+          chordIndex: n.chordIndex,
+        };
+      });
+    if (!kept.length) return result;
+    var tail = result.notes.filter(function (n) { return n.startBeat >= lockBeats; });
+    return {
+      notes: kept.concat(tail).sort(function (a, b) { return a.startBeat - b.startBeat; }),
+      meta: Object.assign({}, result.meta, { motifLockBeats: lockBeats }),
+    };
+  }
+
   function velocityForRole(role, rng, intensity, styleId) {
     var base = role === "target" ? 92 : 72;
     if (styleId === "bebop") {
@@ -118,28 +248,30 @@
     return midi;
   }
 
-  function bluesMidi(tonicPc, modeId, degree, bar, rng, prevMidi, role) {
-    var oct = bar < 2 ? 4 : 5;
+  function bluesMidi(tonicPc, modeId, degree, bar, rng, prevMidi, role, reg) {
+    var oct = bar < 2 ? reg.minOct : reg.maxOct;
     var midi = scale.degreeToMidi(tonicPc, modeId, degree, oct);
     midi = applyBlueNotes(midi, degree, rng, role);
+    midi = clampMidiToRegister(midi, reg);
     if (prevMidi != null && Math.abs(midi - prevMidi) > 8) {
       midi += midi > prevMidi ? -12 : 12;
+      midi = clampMidiToRegister(midi, reg);
     }
     return midi;
   }
 
-  function styleMidi(styleId, tonicPc, modeId, degree, bar, rng, prevMidi, role, targetHint, cellDegrees) {
+  function styleMidi(styleId, tonicPc, modeId, degree, bar, rng, prevMidi, role, targetHint, cellDegrees, reg) {
     if (isBebop(styleId) && role === "pass") {
-      var targetMidi = scale.degreeToMidi(tonicPc, modeId, degree, octaveDrift(degree, bar, rng));
-      return bebopPassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, targetHint || targetMidi);
+      var targetMidi = scale.degreeToMidi(tonicPc, modeId, degree, octaveDrift(degree, bar, rng, reg));
+      return bebopPassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, targetHint || targetMidi, reg);
     }
     if (isPopHook(styleId)) {
-      return popHookMidi(tonicPc, modeId, popHookPickDegree(rng, cellDegrees || [degree]), bar, rng, prevMidi);
+      return popHookMidi(tonicPc, modeId, popHookPickDegree(rng, cellDegrees || [degree]), bar, rng, prevMidi, reg);
     }
     if (isBlues(styleId)) {
-      return bluesMidi(tonicPc, modeId, degree, bar, rng, prevMidi, role);
+      return bluesMidi(tonicPc, modeId, degree, bar, rng, prevMidi, role, reg);
     }
-    return scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi);
+    return scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, reg);
   }
 
   function popHookDegrees() {
@@ -154,11 +286,13 @@
     return pick(rng, pool.length ? pool : pent);
   }
 
-  function popHookMidi(tonicPc, modeId, degree, bar, rng, prevMidi) {
-    var oct = bar % 2 === 0 ? 5 : 5;
+  function popHookMidi(tonicPc, modeId, degree, bar, rng, prevMidi, reg) {
+    var oct = reg.maxOct;
     var midi = scale.degreeToMidi(tonicPc, modeId, degree, oct);
+    midi = clampMidiToRegister(midi, reg);
     if (prevMidi != null && Math.abs(midi - prevMidi) > 9) {
       midi += midi > prevMidi ? -12 : 12;
+      midi = clampMidiToRegister(midi, reg);
     }
     return midi;
   }
@@ -176,31 +310,36 @@
     return dBelow <= dAbove ? below : above;
   }
 
-  function bebopPassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, targetHint) {
+  function bebopPassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, targetHint, reg) {
     if (targetHint != null && rng() > 0.38) {
       return bebopApproachMidi(targetHint, prevMidi, rng);
     }
-    var midi = scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi);
+    var midi = scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, reg);
     if (rng() > 0.55) {
       midi = chromaticNeighbor(midi, rng() > 0.5 ? 1 : -1);
     }
     return midi;
   }
 
-  function octaveDrift(degree, barIndex, rng) {
-    if (degree <= 2) return 4 + (barIndex % 2 === 0 ? 0 : 0);
-    if (degree >= 5) return 5 + (rng() > 0.7 ? 1 : 0);
-    return 5;
+  function octaveDrift(degree, barIndex, rng, reg) {
+    reg = reg || resolveRegister({});
+    var span = reg.maxOct - reg.minOct;
+    if (span <= 0) return reg.minOct;
+    var bias = degree >= 5 ? 0.7 : (degree <= 2 ? 0.2 : 0.45);
+    var oct = reg.minOct + Math.round(bias * span);
+    if (rng() > 0.82) oct = Math.min(reg.maxOct, oct + 1);
+    return Math.max(reg.minOct, Math.min(reg.maxOct, oct));
   }
 
-  function nearestMidi(candidates, prevMidi, preferRegister) {
-    var base = preferRegister != null ? preferRegister * 12 : 60;
+  function nearestMidi(candidates, prevMidi, reg) {
+    reg = reg || resolveRegister({});
+    var center = ((reg.minOct + reg.maxOct) / 2 + 1) * 12;
     var best = candidates[0];
     var bestScore = Infinity;
     candidates.forEach(function (pc) {
-      for (var oct = 3; oct <= 6; oct++) {
-        var midi = oct * 12 + pc;
-        var score = Math.abs(midi - (prevMidi || base)) + Math.abs(midi - 66) * 0.15;
+      for (var oct = reg.minOct; oct <= reg.maxOct; oct++) {
+        var midi = (oct + 1) * 12 + pc;
+        var score = Math.abs(midi - (prevMidi || center)) + Math.abs(midi - center) * 0.12;
         if (score < bestScore) {
           bestScore = score;
           best = midi;
@@ -210,7 +349,7 @@
     return best;
   }
 
-  function chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId, styleId) {
+  function chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId, styleId, reg) {
     var tones = seg.tones;
     var weighted = [];
     tones.forEach(function (pc, i) {
@@ -221,15 +360,15 @@
       for (var k = 0; k < w; k++) weighted.push(pc);
     });
     var pc = pick(rng, weighted);
-    return nearestMidi([pc], prevMidi, 5);
+    return nearestMidi([pc], prevMidi, reg);
   }
 
-  function scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi) {
-    var oct = octaveDrift(degree, bar, rng);
-    var midi = scale.degreeToMidi(tonicPc, modeId, degree, oct);
-    if (rng() > 0.82) midi += rng() > 0.5 ? 1 : -1;
-    if (prevMidi != null && Math.abs(midi - prevMidi) > 7) {
-      midi += midi > prevMidi ? -12 : 12;
+  function scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, reg) {
+    var midi = degreeToNearestMidi(tonicPc, modeId, degree, prevMidi, reg);
+    if (rng() > 0.92 && prevMidi != null) {
+      var step = midi > prevMidi ? -1 : 1;
+      var neighbor = clampMidiToRegister(midi + step, reg);
+      if (Math.abs(neighbor - prevMidi) <= 2) midi = neighbor;
     }
     return midi;
   }
@@ -261,6 +400,7 @@
     var rotation = e.rotation == null ? 0 : e.rotation;
     var scalePulses = Math.max(1, Math.min(7, e.scalePulses == null ? 4 : e.scalePulses));
     var scaleRotation = e.scaleRotation == null ? 0 : e.scaleRotation;
+    var reg = resolveRegister(opts);
 
     var rhythm = euclid.euclidean(pulses, steps, rotation);
     var degreePattern = euclid.euclidean(scalePulses, 7, scaleRotation);
@@ -281,13 +421,13 @@
         var seg = timeline ? chords.chordAtBeat(timeline, atBeat) : null;
         var midi;
         if (seg) {
-          midi = chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId, opts.styleId);
+          midi = chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId, opts.styleId, reg);
         } else {
           var degree = activeDegrees[pulseIdx % activeDegrees.length];
           if (rng() > 0.72) {
             degree = activeDegrees[Math.floor(rng() * activeDegrees.length)];
           }
-          midi = scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi);
+          midi = scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, reg);
         }
 
         notes.push({
@@ -360,6 +500,7 @@
     var bebop = isBebop(styleId);
     var popHook = isPopHook(styleId);
     var blues = isBlues(styleId);
+    var reg = resolveRegister(opts);
 
     while (beat < totalBeats) {
       var bar = Math.floor(beat / barLen);
@@ -372,7 +513,7 @@
             role: c.role,
           };
         });
-      } else if (rng() > (bebop ? 0.45 : popHook ? 0.55 : 0.65)) {
+      } else if (rng() > (bebop ? 0.55 : popHook ? 0.68 : 0.78)) {
         cells = cells.map(function (c) {
           return {
             degrees: c.degrees.map(function (d) { return (d + 1) % 7; }),
@@ -394,23 +535,23 @@
         if (atBeat + dur > totalBeats) dur = totalBeats - atBeat;
 
         var midi;
-        var targetHint = seg ? nearestMidi(seg.tones, prevMidi, 5) : null;
+        var targetHint = seg ? nearestMidi(seg.tones, prevMidi, reg) : null;
         if (seg && cell.role === "target") {
-          midi = chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId, styleId);
+          midi = chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId, styleId, reg);
           if (blues) {
             midi = applyBlueNotes(midi, cell.degrees[0], rng, "target");
           }
         } else {
-          var degree = popHook ? popHookPickDegree(rng, cell.degrees) : pick(rng, cell.degrees);
+          var degree = popHook ? popHookPickDegree(rng, cell.degrees) : pickSmoothDegree(rng, cell.degrees, prevMidi, tonicPc, modeId, reg);
           if (seg && bebop) {
-            midi = bebopPassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, targetHint);
+            midi = bebopPassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, targetHint, reg);
           } else if (seg && !popHook && !blues) {
-            midi = scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi);
+            midi = scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, reg);
             if (rng() > 0.55) {
-              midi = nearestMidi(seg.tones, prevMidi, 5);
+              midi = nearestMidi(seg.tones, prevMidi, reg);
             }
           } else {
-            midi = styleMidi(styleId, tonicPc, modeId, degree, bar, rng, prevMidi, cell.role, targetHint, cell.degrees);
+            midi = styleMidi(styleId, tonicPc, modeId, degree, bar, rng, prevMidi, cell.role, targetHint, cell.degrees, reg);
           }
         }
 
@@ -461,26 +602,21 @@
     var pattern = PATTERNS[styleId] || PATTERNS["modal-jazz"];
     var rng = mulberry32(opts.seed != null ? opts.seed : Date.now() & 0xffff);
     var intensity = opts.intensity == null ? 0.55 : opts.intensity;
+    var reg = resolveRegister(opts);
+    var result;
 
     if (opts.euclidean && opts.euclidean.enabled) {
       if (opts.chords && opts.chords.length) {
-        return generateEuclideanWithChords(opts, rng, intensity);
+        result = generateEuclideanWithChords(opts, rng, intensity);
+      } else {
+        result = generateEuclidean(opts, rng, intensity);
       }
-      return generateEuclidean(opts, rng, intensity);
+      return finalizePhrase(mergeMotifLock(result, opts.preserveNotes, opts.lockBeats), styleId);
     }
 
     if (opts.chords && opts.chords.length) {
-      return generateFromChords(
-        {
-          tonicPc: tonicPc,
-          modeId: modeId,
-          styleId: styleId,
-          chords: opts.chords,
-        },
-        pattern,
-        rng,
-        intensity
-      );
+      result = generateFromChords(opts, pattern, rng, intensity);
+      return finalizePhrase(mergeMotifLock(result, opts.preserveNotes, opts.lockBeats), styleId);
     }
 
     var bars = opts.bars || pattern.bars || 4;
@@ -503,7 +639,7 @@
             role: c.role,
           };
         });
-      } else if (rng() > (bebop ? 0.45 : popHook ? 0.55 : 0.65)) {
+      } else if (rng() > (bebop ? 0.55 : popHook ? 0.68 : 0.78)) {
         cells = cells.map(function (c) {
           return { degrees: c.degrees.map(function (d) { return (d + 1) % 7; }), dur: c.dur, role: c.role };
         });
@@ -514,18 +650,19 @@
       var nextTargetDegree = cells[(ci + 2) % cells.length].degrees[0];
       while (barBeat < barLen && ci < cells.length) {
         var cell = cells[ci % cells.length];
-        var degree = popHook ? popHookPickDegree(rng, cell.degrees) : pick(rng, cell.degrees);
-        var oct = octaveDrift(degree, bar, rng);
+        var degree = popHook ? popHookPickDegree(rng, cell.degrees) : pickSmoothDegree(rng, cell.degrees, prevMidi, tonicPc, modeId, reg);
+        var oct = octaveDrift(degree, bar, rng, reg);
         var midi;
         if (bebop && cell.role === "pass") {
-          var targetMidi = scale.degreeToMidi(tonicPc, modeId, nextTargetDegree, oct);
-          midi = bebopPassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, targetMidi);
+          var targetMidi = degreeToNearestMidi(tonicPc, modeId, nextTargetDegree, prevMidi, reg);
+          midi = bebopPassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, targetMidi, reg);
         } else if (popHook || blues) {
-          midi = styleMidi(styleId, tonicPc, modeId, degree, bar, rng, prevMidi, cell.role, null, cell.degrees);
+          midi = styleMidi(styleId, tonicPc, modeId, degree, bar, rng, prevMidi, cell.role, null, cell.degrees, reg);
         } else {
-          midi = scale.degreeToMidi(tonicPc, modeId, degree, oct);
-          if (rng() > 0.82 && cell.role === "pass") {
-            midi += rng() > 0.5 ? 1 : -1;
+          midi = degreeToNearestMidi(tonicPc, modeId, degree, prevMidi, reg);
+          if (rng() > 0.9 && cell.role === "pass" && prevMidi != null) {
+            var chromatic = clampMidiToRegister(midi + (midi > prevMidi ? -1 : 1), reg);
+            if (Math.abs(chromatic - prevMidi) <= 2) midi = chromatic;
           }
         }
 
@@ -550,7 +687,7 @@
       beat += barLen;
     }
 
-    return {
+    result = {
       notes: notes,
       meta: {
         tonicPc: tonicPc,
@@ -560,11 +697,14 @@
         beatsPerBar: barLen,
         keyLabel: scale.keyLabel(tonicPc, modeId),
         chordAware: false,
+        registerMin: reg.minOct,
+        registerMax: reg.maxOct,
       },
     };
+    return finalizePhrase(mergeMotifLock(result, opts.preserveNotes, opts.lockBeats), styleId);
   }
 
-  function mutatePhrase(result, mutateMode, seed) {
+  function mutatePhrase(result, mutateMode, seed, lockBeats) {
     if (!result || !result.notes || !result.notes.length) return result;
     mutateMode = mutateMode || "both";
     var rng = mulberry32(seed != null ? seed >>> 0 : Date.now() & 0xffff);
@@ -584,6 +724,7 @@
 
     if (mutateMode === "rhythm" || mutateMode === "both") {
       notes.forEach(function (n) {
+        if (lockBeats && n.startBeat < lockBeats) return;
         if (rng() > 0.2) {
           n.startBeat = Math.max(0, n.startBeat + pick(rng, [0.25, -0.25, 0.5, -0.5]));
         }
@@ -602,6 +743,7 @@
     if (mutateMode === "melody" || mutateMode === "both") {
       var pcs = scale.scalePcs(tonicPc, modeId);
       notes.forEach(function (n) {
+        if (lockBeats && n.startBeat < lockBeats) return;
         if (rng() > 0.32) return;
         var pc = scale.clampPc(n.midi);
         var idx = pcs.indexOf(pc);
@@ -617,10 +759,13 @@
       });
     }
 
-    return {
-      notes: notes,
-      meta: Object.assign({}, result.meta, { mutated: mutateMode }),
-    };
+    return finalizePhrase(
+      {
+        notes: notes,
+        meta: Object.assign({}, result.meta, { mutated: mutateMode }),
+      },
+      result.meta.styleId
+    );
   }
 
   function buildElasticContext(result, bpm, extra) {
@@ -649,6 +794,10 @@
     PATTERNS: PATTERNS,
     generatePhrase: generatePhrase,
     mutatePhrase: mutatePhrase,
+    mergeMotifLock: mergeMotifLock,
+    resolveRegister: resolveRegister,
+    polishPhrase: polishPhrase,
+    degreeToNearestMidi: degreeToNearestMidi,
     buildElasticContext: buildElasticContext,
   };
 

@@ -18,6 +18,10 @@
     swing: 58,
     humanize: 35,
     chordInputText: "",
+    registerMin: 4,
+    registerMax: 5,
+    motifLock: false,
+    lockBars: 2,
     euclidean: {
       enabled: false,
       pulses: 5,
@@ -75,6 +79,13 @@
   var mutateRhythmBtn = document.getElementById("mutateRhythmBtn");
   var mutateMelodyBtn = document.getElementById("mutateMelodyBtn");
   var mutateBothBtn = document.getElementById("mutateBothBtn");
+  var registerMinSlider = document.getElementById("registerMinSlider");
+  var registerMaxSlider = document.getElementById("registerMaxSlider");
+  var registerMinVal = document.getElementById("registerMinVal");
+  var registerMaxVal = document.getElementById("registerMaxVal");
+  var motifLockBtn = document.getElementById("motifLockBtn");
+  var lockBarsSlider = document.getElementById("lockBarsSlider");
+  var lockBarsVal = document.getElementById("lockBarsVal");
 
   function feelOptions() {
     return { swing: state.swing, humanize: state.humanize, seed: state.seed };
@@ -101,12 +112,30 @@
     return null;
   }
 
-  function refreshPianoRoll(notes, rollBars, beatsPerBar, euclidOpts) {
+  function pianoRollLockBeats(res) {
+    if (state.motifLock) return motifLockBeats();
+    if (res && res.meta && res.meta.motifLockBeats) return res.meta.motifLockBeats;
+    return 0;
+  }
+
+  function updateMotifLockUi() {
+    if (motifLockBtn) {
+      motifLockBtn.textContent = "🔒 Motiv " + state.lockBars + "T";
+      motifLockBtn.title =
+        "Erste " + state.lockBars + " Takte beim Generieren/Mutieren behalten";
+      motifLockBtn.classList.toggle("active", state.motifLock);
+    }
+    if (lockBarsSlider) lockBarsSlider.value = String(state.lockBars);
+    if (lockBarsVal) lockBarsVal.textContent = state.lockBars + " Takte";
+  }
+
+  function refreshPianoRoll(notes, rollBars, beatsPerBar, euclidOpts, lockBeats) {
     pianoRoll.classList.toggle("compact", !euclidOpts);
     ElasticPianoRoll.drawPianoRoll(pianoRoll, notes || [], {
       bars: rollBars,
       beatsPerBar: beatsPerBar || 4,
       euclidean: euclidOpts,
+      lockBeats: lockBeats || 0,
     });
   }
 
@@ -128,10 +157,11 @@
         state.result.notes,
         rollBars,
         state.result.meta.beatsPerBar,
-        euclidDrawOpts(state.result)
+        euclidDrawOpts(state.result),
+        pianoRollLockBeats(state.result)
       );
     } else if (state.euclidean.enabled) {
-      refreshPianoRoll([], state.chords && state.chords.length ? Math.ceil(state.bars) : state.bars, 4, state.euclidean);
+      refreshPianoRoll([], state.chords && state.chords.length ? Math.ceil(state.bars) : state.bars, 4, state.euclidean, 0);
     } else {
       pianoRoll.classList.add("compact");
     }
@@ -206,6 +236,11 @@
     humanizeSlider.value = String(state.humanize);
     humanizeVal.textContent = state.humanize + "%";
     if (chordInput) chordInput.value = state.chordInputText || "";
+    if (registerMinSlider) registerMinSlider.value = String(state.registerMin);
+    if (registerMaxSlider) registerMaxSlider.value = String(state.registerMax);
+    if (registerMinVal) registerMinVal.textContent = "Okt " + state.registerMin;
+    if (registerMaxVal) registerMaxVal.textContent = "Okt " + state.registerMax;
+    updateMotifLockUi();
     if (window.ElasticSound) ElasticSound.setReverbMix(state.reverb);
     euclidPulses.value = String(state.euclidean.pulses);
     euclidSteps.value = String(state.euclidean.steps);
@@ -234,6 +269,10 @@
     state.chordInputText = shared.chords
       ? ElasticChords.progressionTextFromChords(shared.chords)
       : "";
+    state.registerMin = shared.registerMin == null ? 4 : shared.registerMin;
+    state.registerMax = shared.registerMax == null ? 5 : shared.registerMax;
+    state.motifLock = !!shared.motifLock;
+    state.lockBars = shared.lockBars == null ? 2 : shared.lockBars;
     importBanner.hidden = !state.importLabel;
     if (state.importLabel) {
       importBanner.textContent = "Akkordfolge: " + state.importLabel + " · " + state.bpm + " BPM";
@@ -411,6 +450,41 @@
     humanizeVal.textContent = state.humanize + "%";
   });
 
+  registerMinSlider.addEventListener("input", function () {
+    state.registerMin = Number(registerMinSlider.value);
+    if (state.registerMax < state.registerMin) {
+      state.registerMax = state.registerMin;
+      registerMaxSlider.value = String(state.registerMax);
+      registerMaxVal.textContent = "Okt " + state.registerMax;
+    }
+    registerMinVal.textContent = "Okt " + state.registerMin;
+  });
+
+  registerMaxSlider.addEventListener("input", function () {
+    state.registerMax = Number(registerMaxSlider.value);
+    if (state.registerMax < state.registerMin) {
+      state.registerMin = state.registerMax;
+      registerMinSlider.value = String(state.registerMin);
+      registerMinVal.textContent = "Okt " + state.registerMin;
+    }
+    registerMaxVal.textContent = "Okt " + state.registerMax;
+  });
+
+  motifLockBtn.addEventListener("click", function () {
+    state.motifLock = !state.motifLock;
+    if (state.motifLock && !state.result) {
+      state.motifLock = false;
+    }
+    updateMotifLockUi();
+    if (state.result) renderResult();
+  });
+
+  lockBarsSlider.addEventListener("input", function () {
+    state.lockBars = Number(lockBarsSlider.value);
+    updateMotifLockUi();
+    if (state.result) renderResult();
+  });
+
   document.body.addEventListener(
     "pointerdown",
     function warmSoundOnce() {
@@ -446,6 +520,7 @@
       mutateRhythmBtn.disabled = true;
       mutateMelodyBtn.disabled = true;
       mutateBothBtn.disabled = true;
+      motifLockBtn.disabled = true;
       refreshPianoRoll([], state.bars, 4, state.euclidean.enabled ? state.euclidean : null);
       return;
     }
@@ -453,6 +528,12 @@
     var modeTag = res.meta.chordAware ? " · akkordbewusst" : "";
     if (res.meta.euclidean) {
       modeTag += " · E(" + res.meta.euclidean.pulses + "," + res.meta.euclidean.steps + ")";
+    }
+    if (res.meta.motifLockBeats) {
+      modeTag += " · Motiv " + res.meta.motifLockBeats / 4 + "T fix";
+    }
+    if (res.meta.registerMin != null) {
+      modeTag += " · Okt " + res.meta.registerMin + "–" + res.meta.registerMax;
     }
     phraseMeta.innerHTML =
       "Tonart: <b>" +
@@ -482,31 +563,38 @@
       ? Math.ceil((res.meta.totalBeats || res.meta.bars * 4) / 4)
       : res.meta.bars;
 
-    refreshPianoRoll(res.notes, rollBars, res.meta.beatsPerBar, euclidDrawOpts(res));
+    refreshPianoRoll(res.notes, rollBars, res.meta.beatsPerBar, euclidDrawOpts(res), pianoRollLockBeats(res));
     exportMidiBtn.disabled = false;
     playBtn.disabled = false;
     shareComposerBtn.disabled = false;
     mutateRhythmBtn.disabled = false;
     mutateMelodyBtn.disabled = false;
     mutateBothBtn.disabled = false;
+    motifLockBtn.disabled = false;
   }
 
   function mutatePhraseMode(mode) {
     if (!state.result) return;
     stopPlayback();
     state.seed = (state.seed + 1) & 0xffff;
-    state.result = ElasticPhraseEngine.mutatePhrase(state.result, mode, state.seed);
+    var lockBeats = state.motifLock ? state.lockBars * 4 : 0;
+    state.result = ElasticPhraseEngine.mutatePhrase(state.result, mode, state.seed, lockBeats);
     renderResult();
   }
 
-  function generatePhrase() {
-    stopPlayback();
+  function motifLockBeats() {
+    return state.motifLock ? state.lockBars * 4 : 0;
+  }
+
+  function buildGenerateOpts() {
     var opts = {
       tonicPc: state.tonicPc,
       modeId: state.modeId,
       styleId: state.styleId,
       intensity: state.intensity,
       seed: state.seed,
+      registerMin: state.registerMin,
+      registerMax: state.registerMax,
     };
     if (state.chords && state.chords.length) {
       opts.chords = state.chords;
@@ -516,7 +604,18 @@
     if (state.euclidean.enabled) {
       opts.euclidean = state.euclidean;
     }
-    state.result = ElasticPhraseEngine.generatePhrase(opts);
+    if (state.motifLock && state.result) {
+      opts.lockBeats = motifLockBeats();
+      opts.preserveNotes = state.result.notes.filter(function (n) {
+        return n.startBeat < opts.lockBeats;
+      });
+    }
+    return opts;
+  }
+
+  function generatePhrase() {
+    stopPlayback();
+    state.result = ElasticPhraseEngine.generatePhrase(buildGenerateOpts());
     renderResult();
   }
 
@@ -592,6 +691,7 @@
 
   buildTonicPicker();
   buildModePicker();
+  updateMotifLockUi();
   renderChords();
   updateEuclidPreview();
 

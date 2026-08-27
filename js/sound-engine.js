@@ -176,8 +176,8 @@ export async function ensureReady(ctx, presetId) {
 export function playMelodyNote(ctx, midiNote, startTime, durationSec, velocityMul) {
   var out = ensureOutput(ctx);
   var spec = presetSpec(currentPreset);
-  var gain = Math.max(0.04, (velocityMul || 0.65) * 0.62);
-  var dur = Math.max(0.08, durationSec || spec.duration);
+  var gain = Math.max(0.06, (velocityMul || 0.65) * 0.82);
+  var dur = Math.max(0.1, (durationSec || spec.duration) * 1.06);
 
   function schedule(inst) {
     inst.play(midiNote, startTime, { duration: dur, gain: gain, destination: out.destination });

@@ -40,7 +40,9 @@
         playing = true;
         var schedules = notes.map(function (n) {
           var start = audio.currentTime + lead + n.startBeat * beatSec;
-          var dur = Math.max(0.05, n.durationBeats * beatSec * 0.92);
+          var role = n.role || "target";
+          var durMul = role === "pass" ? 0.84 : role === "target" ? 0.96 : 0.9;
+          var dur = Math.max(0.06, n.durationBeats * beatSec * durMul);
           var vel = (n.velocity || 90) / 127;
           endBeat = Math.max(endBeat, n.startBeat + n.durationBeats);
           if (window.ElasticSound) {

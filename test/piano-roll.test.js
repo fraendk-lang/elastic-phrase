@@ -18,3 +18,9 @@ test("getEuclidPatterns returns rhythm and scale arrays", function () {
   assert.equal(p.scale.length, 7);
   assert.equal(euclid.pulseCount(p.rhythm), 3);
 });
+
+test("lockRegionEndX maps beats to grid width", function () {
+  assert.equal(pianoRoll.lockRegionEndX(0, 36, 760, 16), null);
+  assert.equal(pianoRoll.lockRegionEndX(8, 36, 760, 16), 36 + (8 / 16) * 760);
+  assert.equal(pianoRoll.lockRegionEndX(20, 36, 760, 16), 36 + (16 / 16) * 760);
+});

@@ -102,7 +102,7 @@
         <div class="brand-dot"></div>
         <div class="brand-name">Elastic Universe</div>
       </div>
-      <div class="badge">v1.6</div>
+      <div class="badge">v1.8</div>
     </header>
 
     <h1>Elastic <span>Phrase</span></h1>
@@ -187,6 +187,17 @@
         <input type="range" id="intensitySlider" min="0" max="100" value="55">
         <span class="slider-val" id="intensityVal">55%</span>
       </div>
+      <div class="slider-row">
+        <label>REGISTER TIEF</label>
+        <input type="range" id="registerMinSlider" min="3" max="6" value="4">
+        <span class="slider-val" id="registerMinVal">Okt 4</span>
+      </div>
+      <div class="slider-row">
+        <label>REGISTER HOCH</label>
+        <input type="range" id="registerMaxSlider" min="3" max="6" value="5">
+        <span class="slider-val" id="registerMaxVal">Okt 5</span>
+      </div>
+      <div class="mode-hint">Oktav-Spanne für neue Noten — z. B. 4–5 für mittlere Lage, 5–6 für höhere Melodien.</div>
       <div class="toolbar">
         <button class="primary" id="generateBtn">✦ Phrase generieren</button>
         <button id="playBtn" disabled>▶ Abspielen</button>
@@ -237,7 +248,13 @@
         <div class="key-readout" id="phraseMeta">Noch keine Phrase — oben generieren.</div>
       </div>
       <canvas id="pianoRoll" aria-label="Piano-Roll Vorschau"></canvas>
+      <div class="slider-row" style="margin-top:10px">
+        <label>MOTIV</label>
+        <input type="range" id="lockBarsSlider" min="1" max="4" value="2">
+        <span class="slider-val" id="lockBarsVal">2 Takte</span>
+      </div>
       <div class="toolbar" style="margin-top:12px">
+        <button class="ghost" id="motifLockBtn" disabled title="Erste 2 Takte beim Generieren/Mutieren behalten">🔒 Motiv 2T</button>
         <button class="ghost" id="mutateRhythmBtn" disabled title="Rhythmus variieren, Melodie behalten">↻ Rhythmus</button>
         <button class="ghost" id="mutateMelodyBtn" disabled title="Melodie variieren, Rhythmus behalten">↻ Melodie</button>
         <button class="ghost" id="mutateBothBtn" disabled title="Rhythmus und Melodie leicht variieren">↻ Beides</button>

@@ -38,6 +38,9 @@
     if (frac >= 0.48 && frac <= 0.52) {
       return barStart + whole + ratio;
     }
+    if (frac >= 0.22 && frac <= 0.28) {
+      return barStart + whole + frac * (1 + swing / 320);
+    }
     return beat;
   }
 

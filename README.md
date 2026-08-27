@@ -4,6 +4,16 @@ Monophonic melody generator — sibling to [Elastic Composer](https://elasticcom
 
 **Live:** [elastic-phrase.vercel.app](https://elastic-phrase.vercel.app)
 
+## v0.9 — Motiv-Sperre konfigurierbar + Piano-Roll
+
+- **MOTIV-Slider** — gesperrte Takte von 1–4 wählen (Button zeigt „🔒 Motiv NT“)
+- **Piano-Roll** — orange Markierung für die gesperrte Motiv-Region
+
+## v0.8 — Register + Motiv-Sperre
+
+- **Register TIEF/HOCH** — Oktav-Spanne (3–6) steuert die Tonhöhen-Lage
+- **🔒 Motiv 2T** — erste Takte bleiben bei Generieren und Mutieren fix
+
 ## v0.7 — Blues v2 + Phrase mutieren
 
 - **Blues** — Shuffle-Achtel, Blue Notes, Call & Response (Takt 1–2 → 3–4)
@@ -81,3 +91,4 @@ Planned: **elasticphrase.app** (purchase early September 2026). Setup steps: [`d
 - v1.4: Bebop style + share links ✓
 - v1.5: chord text input, swing/humanize, pop hook ✓
 - v1.6: blues v2 + phrase mutation ✓
+- v1.7: register span + motif lock ✓

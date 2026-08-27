@@ -35,6 +35,26 @@ test("generatePhrase produces monophonic timeline", function () {
     assert.ok(n.durationBeats > 0);
     assert.ok(n.velocity >= 48 && n.velocity <= 127);
   });
+  for (var i = 1; i < res.notes.length; i++) {
+    var prev = res.notes[i - 1];
+    var cur = res.notes[i];
+    assert.ok(prev.startBeat + prev.durationBeats <= cur.startBeat + 0.001);
+  }
+});
+
+test("polishPhrase removes overlaps and shortens passing notes", function () {
+  var raw = [
+    { midi: 60, startBeat: 0, durationBeats: 1, velocity: 90, role: "target" },
+    { midi: 62, startBeat: 0.5, durationBeats: 0.8, velocity: 80, role: "pass" },
+  ];
+  var out = engine.polishPhrase(raw, { styleId: "modal-jazz" });
+  assert.ok(out[0].durationBeats <= 0.5);
+  assert.ok(out[1].durationBeats < 0.8);
+});
+
+test("degreeToNearestMidi prefers small intervals", function () {
+  var near = engine.degreeToNearestMidi(0, "dorian", 2, 62, { minOct: 4, maxOct: 5 });
+  assert.ok(Math.abs(near - 62) <= 2);
 });
 
 test("phraseToMidiBytes returns valid header", function () {
@@ -111,7 +131,8 @@ test("blues style applies shuffle cells", function () {
   var res = engine.generatePhrase({ seed: 55, bars: 2, styleId: "blues", tonicPc: 0, modeId: "mixolydian" });
   assert.equal(res.meta.styleId, "blues");
   assert.ok(res.notes.length >= 8);
-  assert.ok(res.notes.some(function (n) { return n.durationBeats === 0.75 || n.durationBeats === 0.25; }));
+  assert.ok(res.notes.some(function (n) { return n.durationBeats >= 0.55 && n.durationBeats <= 0.85; }));
+  assert.ok(res.notes.some(function (n) { return n.durationBeats >= 0.12 && n.durationBeats <= 0.32; }));
 });
 
 test("mutatePhrase changes rhythm without full regen", function () {
@@ -132,6 +153,35 @@ test("mutatePhrase changes melody steps", function () {
     return n.midi !== base.notes[i].midi;
   });
   assert.ok(changed);
+});
+
+test("mutatePhrase respects motif lock beats", function () {
+  var base = engine.generatePhrase({ seed: 12, bars: 4, styleId: "modal-jazz" });
+  var locked = engine.mutatePhrase(base, "melody", 99, 8);
+  base.notes.forEach(function (orig) {
+    if (orig.startBeat >= 8) return;
+    var next = locked.notes.find(function (n) {
+      return Math.abs(n.startBeat - orig.startBeat) < 0.001;
+    });
+    assert.ok(next);
+    assert.equal(next.midi, orig.midi);
+  });
+});
+
+test("mergeMotifLock preserves opening bars", function () {
+  var a = engine.generatePhrase({ seed: 1, bars: 4, styleId: "modal-jazz" });
+  var b = engine.generatePhrase({ seed: 2, bars: 4, styleId: "modal-jazz" });
+  var merged = engine.mergeMotifLock(b, a.notes, 8);
+  assert.equal(merged.meta.motifLockBeats, 8);
+  assert.equal(merged.notes[0].midi, a.notes[0].midi);
+  assert.ok(merged.notes.some(function (n) { return n.startBeat >= 8; }));
+});
+
+test("register range limits generated midi", function () {
+  var low = engine.generatePhrase({ seed: 5, bars: 2, registerMin: 3, registerMax: 3 });
+  low.notes.forEach(function (n) {
+    assert.ok(Math.floor(n.midi / 12) - 1 <= 3);
+  });
 });
 
 test("pop hook style uses pentatonic motion", function () {

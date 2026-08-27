@@ -127,6 +127,37 @@
     }
   }
 
+  function lockRegionEndX(lockBeats, padL, gridW, totalBeats) {
+    if (!lockBeats || lockBeats <= 0) return null;
+    var endBeat = Math.min(lockBeats, totalBeats);
+    return padL + (endBeat / totalBeats) * gridW;
+  }
+
+  function drawLockRegion(ctx, layout) {
+    var x1 = lockRegionEndX(layout.lockBeats, layout.padL, layout.gridW, layout.totalBeats);
+    if (x1 == null) return;
+
+    var padL = layout.padL;
+    var padT = layout.padT;
+    var gridH = layout.gridH;
+
+    ctx.fillStyle = "rgba(255, 140, 66, 0.08)";
+    ctx.fillRect(padL, padT, x1 - padL, gridH);
+
+    ctx.strokeStyle = "rgba(255, 140, 66, 0.5)";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(x1, padT);
+    ctx.lineTo(x1, padT + gridH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = "rgba(255, 140, 66, 0.85)";
+    ctx.font = "9px JetBrains Mono, monospace";
+    ctx.fillText("Motiv", padL + 4, padT + 11);
+  }
+
   function drawNotes(ctx, notes, layout) {
     var padL = layout.padL;
     var padT = layout.padT;
@@ -173,6 +204,7 @@
     var bars = opts.bars || 4;
     var totalBeats = beatsPerBar * bars;
     var patterns = getEuclidPatterns(opts.euclidean);
+    var lockBeats = opts.lockBeats || 0;
     var minMidi = 48;
     var maxMidi = 84;
 
@@ -208,6 +240,7 @@
       minMidi: minMidi,
       range: maxMidi - minMidi + 1,
       patterns: patterns,
+      lockBeats: lockBeats,
     };
 
     if (patterns) {
@@ -230,6 +263,8 @@
     if (patterns) {
       drawPulseColumns(ctx, patterns, layout);
     }
+
+    drawLockRegion(ctx, layout);
 
     for (var m = minMidi; m <= maxMidi; m++) {
       var y = padT + gridH - ((m - minMidi + 0.5) / layout.range) * gridH;
@@ -264,6 +299,7 @@
     drawPianoRoll: drawPianoRoll,
     getEuclidPatterns: getEuclidPatterns,
     stepIndexAtBeat: stepIndexAtBeat,
+    lockRegionEndX: lockRegionEndX,
   };
 
   global.ElasticPianoRoll = api;

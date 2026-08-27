@@ -92,6 +92,10 @@
     }
     if (state.swing != null && state.swing !== 58) payload.sw = state.swing;
     if (state.humanize != null && state.humanize !== 35) payload.hu = state.humanize;
+    if (state.registerMin != null && state.registerMin !== 4) payload.rmn = state.registerMin;
+    if (state.registerMax != null && state.registerMax !== 5) payload.rmx = state.registerMax;
+    if (state.motifLock) payload.lm = 1;
+    if (state.lockBars != null && state.lockBars !== 2) payload.lb = state.lockBars;
     return payload;
   }
 
@@ -124,6 +128,10 @@
       reverb: payload.rv == null ? 0.28 : Math.max(0, Math.min(100, payload.rv)) / 100,
       swing: payload.sw == null ? 58 : Math.max(0, Math.min(100, payload.sw)),
       humanize: payload.hu == null ? 35 : Math.max(0, Math.min(100, payload.hu)),
+      registerMin: payload.rmn == null ? 4 : Math.max(3, Math.min(6, payload.rmn)),
+      registerMax: payload.rmx == null ? 5 : Math.max(3, Math.min(6, payload.rmx)),
+      motifLock: payload.lm === 1,
+      lockBars: payload.lb == null ? 2 : Math.max(1, Math.min(4, payload.lb)),
       euclidean: {
         enabled: false,
         pulses: 5,
@@ -152,6 +160,7 @@
         next.importLabel = chordsApi.formatProgression(parsed.chords);
       }
     }
+    if (next.registerMax < next.registerMin) next.registerMax = next.registerMin;
 
     return next;
   }

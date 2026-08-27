@@ -29,17 +29,23 @@ test("serializeShareState and applySharePayload roundtrip", function () {
       scaleRotation: 1,
     },
     chords: [{ rootPc: 0, qualityId: "m7", bassPc: 0, beats: 4 }],
+    motifLock: true,
+    lockBars: 3,
   };
 
   var payload = handoff.serializeShareState(state);
   assert.equal(payload.v, 1);
   assert.equal(payload.s, "bebop");
+  assert.equal(payload.lm, 1);
+  assert.equal(payload.lb, 3);
   assert.ok(payload.e);
 
   var restored = handoff.applySharePayload(payload);
   assert.ok(restored);
   assert.equal(restored.styleId, "bebop");
   assert.equal(restored.seed, 4242);
+  assert.equal(restored.motifLock, true);
+  assert.equal(restored.lockBars, 3);
   assert.equal(restored.euclidean.pulses, 7);
   assert.equal(restored.chords.length, 1);
 });
