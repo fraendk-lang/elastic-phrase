@@ -1,13 +1,13 @@
 {
   "name": "elastic-phrase",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "Elastic Phrase — monophonic melody generator with MusyngKite preview",
   "scripts": {
     "start": "npx serve . -p 3344",
     "fetch:soundfonts": "node scripts/fetch-soundfonts.js",
     "check:soundfonts": "node scripts/check-soundfonts.js",
-    "test": "node --test test/euclid.test.js test/chords.test.js test/piano-roll.test.js test/soundfont-config.test.js test/phrase-engine.test.js",
+    "test": "node --test test/euclid.test.js test/chords.test.js test/piano-roll.test.js test/soundfont-config.test.js test/phrase-engine.test.js test/handoff.test.js",
     "test:e2e": "playwright test",
     "ci": "npm run check:soundfonts && npm test && npm run test:e2e",
     "deploy": "vercel --prod"

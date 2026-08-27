@@ -81,6 +81,32 @@ test("importFromLocation parses composer query", function () {
   assert.equal(data.chords.length, 1);
 });
 
+test("bebop style produces denser eighth-note lines", function () {
+  var modal = engine.generatePhrase({ seed: 21, bars: 2, styleId: "modal-jazz" });
+  var bebop = engine.generatePhrase({ seed: 21, bars: 2, styleId: "bebop" });
+  assert.equal(bebop.meta.styleId, "bebop");
+  assert.ok(bebop.notes.length >= modal.notes.length);
+  var chromatic = bebop.notes.filter(function (n, i) {
+    if (i === 0) return false;
+    var prev = bebop.notes[i - 1].midi;
+    return Math.abs(n.midi - prev) === 1;
+  });
+  assert.ok(chromatic.length > 0);
+});
+
+test("bebop chord-aware favors chord tones on targets", function () {
+  var res = engine.generatePhrase({
+    seed: 33,
+    styleId: "bebop",
+    chords: [
+      { rootPc: 0, qualityId: "m7", bassPc: 0, beats: 4 },
+      { rootPc: 7, qualityId: "7", bassPc: 7, beats: 4 },
+    ],
+  });
+  assert.equal(res.meta.chordAware, true);
+  assert.ok(res.notes.length > 8);
+});
+
 test("euclidean phrase generates rhythm hits", function () {
   var res = engine.generatePhrase({
     seed: 3,

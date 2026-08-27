@@ -4,6 +4,12 @@ Monophonic melody generator — sibling to [Elastic Composer](https://elasticcom
 
 **Live:** [elastic-phrase.vercel.app](https://elastic-phrase.vercel.app)
 
+## v0.5 — Bebop + Share Link
+
+- **Bebop-Stil** — Achtel-Linien, chromatische Annäherungen, Terz/Septime-Betonung
+- **⎘ Link** — Einstellungen + Seed als URL kopieren (`#s=` Hash)
+- Share-Link stellt Tonart, Stil, Euklid, Klang und optional Akkordfolge wieder her
+
 ## v0.4 — MusyngKite Sound
 
 - **5 Instrumente:** Flöte, Konzertflügel, Klavier, Rhodes, Pad
@@ -60,4 +66,5 @@ Planned: **elasticphrase.app** (purchase early September 2026). Setup steps: [`d
 ## Roadmap
 
 - v1.1: chord-aware generation + Composer handoff (`ElasticContext`)
-- v1.2: Web MIDI preview, more styles (bebop, pop hook)
+- v1.2: Web MIDI preview, more styles (pop hook)
+- v1.4: Bebop style + share links ✓

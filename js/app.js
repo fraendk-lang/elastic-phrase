@@ -60,6 +60,8 @@
   var soundPresetPicker = document.getElementById("soundPresetPicker");
   var reverbSlider = document.getElementById("reverbSlider");
   var reverbVal = document.getElementById("reverbVal");
+  var shareLinkBtn = document.getElementById("shareLinkBtn");
+  var shareToast = document.getElementById("shareToast");
 
   function euclidDrawOpts(res) {
     if (res && res.meta && res.meta.euclidean) {
@@ -150,6 +152,64 @@
       });
       modePicker.appendChild(btn);
     });
+  }
+
+  function syncPickersFromState() {
+    document.querySelectorAll(".key-btn").forEach(function (b) {
+      b.classList.toggle("active", Number(b.dataset.pc) === state.tonicPc);
+    });
+    document.querySelectorAll(".mode-btn").forEach(function (b) {
+      b.classList.toggle("active", b.dataset.mode === state.modeId);
+    });
+    document.querySelectorAll(".style-btn[data-style]").forEach(function (b) {
+      b.classList.toggle("active", b.dataset.style === state.styleId);
+    });
+    document.querySelectorAll(".sound-btn[data-sound]").forEach(function (b) {
+      b.classList.toggle("active", b.dataset.sound === state.soundPreset);
+    });
+  }
+
+  function syncSlidersFromState() {
+    barsSlider.value = String(state.bars);
+    if (!state.chords || !state.chords.length) {
+      barsVal.textContent = state.bars + " Takte";
+    }
+    intensitySlider.value = String(Math.round(state.intensity * 100));
+    intensityVal.textContent = Math.round(state.intensity * 100) + "%";
+    bpmInput.value = String(state.bpm);
+    reverbSlider.value = String(Math.round(state.reverb * 100));
+    reverbVal.textContent = Math.round(state.reverb * 100) + "%";
+    if (window.ElasticSound) ElasticSound.setReverbMix(state.reverb);
+    euclidPulses.value = String(state.euclidean.pulses);
+    euclidSteps.value = String(state.euclidean.steps);
+    euclidRotation.value = String(state.euclidean.rotation);
+    euclidScalePulses.value = String(state.euclidean.scalePulses);
+    setEuclidEnabled(state.euclidean.enabled);
+    if (window.ElasticSound) ElasticSound.setPreset(state.soundPreset);
+  }
+
+  function applyShareState(shared) {
+    if (!shared) return;
+    state.tonicPc = shared.tonicPc;
+    state.modeId = shared.modeId;
+    state.styleId = shared.styleId;
+    state.bars = shared.bars;
+    state.intensity = shared.intensity;
+    state.bpm = shared.bpm;
+    state.seed = shared.seed;
+    state.soundPreset = shared.soundPreset;
+    state.reverb = shared.reverb;
+    state.euclidean = shared.euclidean;
+    state.chords = shared.chords;
+    state.importLabel = shared.importLabel || "";
+    importBanner.hidden = !state.importLabel;
+    if (state.importLabel) {
+      importBanner.textContent = "Akkordfolge: " + state.importLabel + " · " + state.bpm + " BPM";
+    }
+    syncPickersFromState();
+    syncSlidersFromState();
+    renderChords();
+    generatePhrase();
   }
 
   function renderChords() {
@@ -415,6 +475,27 @@
     window.open(ElasticHandoff.buildComposerUrl(ctx), "_blank", "noopener,noreferrer");
   });
 
+  shareLinkBtn.addEventListener("click", function () {
+    var url = ElasticHandoff.buildShareUrl(state, window.location.origin + window.location.pathname);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(showShareToast).catch(function () {
+        window.prompt("Link kopieren:", url);
+      });
+    } else {
+      window.prompt("Link kopieren:", url);
+      showShareToast();
+    }
+  });
+
+  function showShareToast() {
+    if (!shareToast) return;
+    shareToast.hidden = false;
+    clearTimeout(showShareToast._t);
+    showShareToast._t = setTimeout(function () {
+      shareToast.hidden = true;
+    }, 2200);
+  }
+
   buildTonicPicker();
   buildModePicker();
   renderChords();
@@ -424,7 +505,12 @@
   if (imported) {
     applyComposerImport(imported);
   } else {
-    generatePhrase();
+    var shared = ElasticHandoff.importShareFromLocation();
+    if (shared) {
+      applyShareState(shared);
+    } else {
+      generatePhrase();
+    }
   }
 
   window.addEventListener("resize", function () {

@@ -80,6 +80,7 @@
     .chord-row { display: flex; gap: 8px; flex-wrap: wrap; min-height: 32px; align-items: center; }
     .chord-chip { font-family: var(--font-mono); font-size: 13px; background: var(--bg-alt); border: 1px solid var(--border-strong); border-radius: 8px; padding: 6px 10px; color: var(--blue); }
     .import-banner { margin-top: 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(77,155,255,.35); background: rgba(77,155,255,.08); font-size: 13px; color: var(--text-dim); }
+    .share-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 10px 16px; border-radius: 10px; background: rgba(0,255,136,.12); border: 1px solid rgba(0,255,136,.35); color: var(--green); font-family: var(--font-mono); font-size: 12px; z-index: 50; }
     button.playing { border-color: var(--orange); color: var(--orange); background: rgba(255,140,66,.08); }
     footer { margin-top: 28px; color: var(--text-faint); font-size: 12px; font-family: var(--font-mono); line-height: 1.7; }
     footer b { color: var(--text-dim); }
@@ -93,7 +94,7 @@
         <div class="brand-dot"></div>
         <div class="brand-name">Elastic Universe</div>
       </div>
-      <div class="badge">v1.3</div>
+      <div class="badge">v1.4</div>
     </header>
 
     <h1>Elastic <span>Phrase</span></h1>
@@ -155,8 +156,10 @@
       <div class="panel-title">Stil</div>
       <div class="presets" id="stylePicker">
         <button class="style-btn active" data-style="modal-jazz">Modal Jazz</button>
+        <button class="style-btn" data-style="bebop">Bebop</button>
         <button class="style-btn" data-style="blues">Blues (Basis)</button>
       </div>
+      <div class="mode-hint">Bebop: Achtel-Linien, chromatische Annäherungen, Betonung auf Terz/Septime über Akkorden.</div>
       <div class="slider-row">
         <label>LÄNGE</label>
         <input type="range" id="barsSlider" min="2" max="8" value="4">
@@ -173,6 +176,7 @@
         <span class="bpm-ctrl"><label>BPM</label><input type="number" id="bpmInput" min="40" max="240" value="100"></span>
         <button id="exportMidiBtn" disabled>⇩ MIDI exportieren</button>
         <button class="ghost" id="shareComposerBtn" disabled title="Phrase + Folge an Composer senden">→ Composer</button>
+        <button class="ghost" id="shareLinkBtn" title="Einstellungen + Seed als Link kopieren">⎘ Link</button>
         <button class="ghost" id="seedBtn" title="Neuer Zufallssamen">🎲 Seed</button>
       </div>
     </div>
@@ -203,6 +207,8 @@
       <canvas id="pianoRoll" aria-label="Piano-Roll Vorschau"></canvas>
       <div class="note-list" id="noteList"></div>
     </div>
+
+    <div class="share-toast" id="shareToast" hidden>Link kopiert</div>
 
     <footer>
       <div><b>Elastic Phrase</b> — Geschwister zu <a href="https://elasticcomposer.app" style="color:var(--green)">Elastic Composer</a>.</div>

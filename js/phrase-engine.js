@@ -33,6 +33,27 @@
         { degrees: [0], dur: 2, role: "target" },
       ],
     },
+    bebop: {
+      bars: 4,
+      cells: [
+        { degrees: [4], dur: 0.5, role: "pass" },
+        { degrees: [2], dur: 0.5, role: "pass" },
+        { degrees: [0], dur: 0.5, role: "target" },
+        { degrees: [1], dur: 0.5, role: "pass" },
+        { degrees: [2], dur: 0.5, role: "pass" },
+        { degrees: [4], dur: 0.5, role: "target" },
+        { degrees: [6], dur: 0.5, role: "pass" },
+        { degrees: [5], dur: 0.5, role: "pass" },
+        { degrees: [4], dur: 0.5, role: "target" },
+        { degrees: [2], dur: 0.5, role: "pass" },
+        { degrees: [0], dur: 0.5, role: "target" },
+        { degrees: [6], dur: 0.5, role: "pass" },
+        { degrees: [4], dur: 0.5, role: "target" },
+        { degrees: [2], dur: 0.5, role: "pass" },
+        { degrees: [0], dur: 0.5, role: "target" },
+        { degrees: [4], dur: 0.5, role: "pass" },
+      ],
+    },
   };
 
   function mulberry32(seed) {
@@ -49,10 +70,42 @@
     return list[Math.floor(rng() * list.length)];
   }
 
-  function velocityForRole(role, rng, intensity) {
+  function velocityForRole(role, rng, intensity, styleId) {
     var base = role === "target" ? 92 : 72;
+    if (styleId === "bebop") {
+      base = role === "target" ? 98 : 64;
+    }
     var spread = Math.round((intensity || 0.5) * 18);
+    if (styleId === "bebop") spread += 6;
     return Math.max(48, Math.min(118, base + Math.round((rng() - 0.5) * spread)));
+  }
+
+  function isBebop(styleId) {
+    return styleId === "bebop";
+  }
+
+  function chromaticNeighbor(midi, direction) {
+    return midi + (direction > 0 ? 1 : -1);
+  }
+
+  function bebopApproachMidi(targetMidi, prevMidi, rng) {
+    var below = chromaticNeighbor(targetMidi, -1);
+    var above = chromaticNeighbor(targetMidi, 1);
+    if (prevMidi == null) return rng() > 0.5 ? below : above;
+    var dBelow = Math.abs(below - prevMidi);
+    var dAbove = Math.abs(above - prevMidi);
+    return dBelow <= dAbove ? below : above;
+  }
+
+  function bebopPassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, targetHint) {
+    if (targetHint != null && rng() > 0.38) {
+      return bebopApproachMidi(targetHint, prevMidi, rng);
+    }
+    var midi = scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi);
+    if (rng() > 0.55) {
+      midi = chromaticNeighbor(midi, rng() > 0.5 ? 1 : -1);
+    }
+    return midi;
   }
 
   function octaveDrift(degree, barIndex, rng) {
@@ -78,11 +131,14 @@
     return best;
   }
 
-  function chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId) {
+  function chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId, styleId) {
     var tones = seg.tones;
     var weighted = [];
     tones.forEach(function (pc, i) {
-      var w = i === 0 ? 3 : 1;
+      var w = 1;
+      if (i === 0) w = isBebop(styleId) ? 1 : 3;
+      else if (i === 1) w = isBebop(styleId) ? 4 : 1;
+      else if (i >= 3) w = isBebop(styleId) ? 3 : 1;
       for (var k = 0; k < w; k++) weighted.push(pc);
     });
     var pc = pick(rng, weighted);
@@ -146,7 +202,7 @@
         var seg = timeline ? chords.chordAtBeat(timeline, atBeat) : null;
         var midi;
         if (seg) {
-          midi = chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId);
+          midi = chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId, opts.styleId);
         } else {
           var degree = activeDegrees[pulseIdx % activeDegrees.length];
           if (rng() > 0.72) {
@@ -159,7 +215,12 @@
           midi: midi,
           startBeat: atBeat,
           durationBeats: Math.max(stepDur * 0.85, 0.125),
-          velocity: velocityForRole(pulseIdx % 2 === 0 ? "target" : "pass", rng, intensity),
+          velocity: velocityForRole(
+            pulseIdx % 2 === 0 ? "target" : "pass",
+            rng,
+            intensity,
+            opts.styleId
+          ),
           degree: activeDegrees[pulseIdx % activeDegrees.length],
           role: "euclid",
           chordIndex: seg ? seg.index : null,
@@ -213,14 +274,16 @@
     var bars = Math.max(1, Math.ceil(totalBeats / barLen));
     var tonicPc = scale.clampPc(opts.tonicPc == null ? 0 : opts.tonicPc);
     var modeId = opts.modeId || "dorian";
+    var styleId = opts.styleId || "modal-jazz";
     var notes = [];
     var prevMidi = null;
     var beat = 0;
+    var bebop = isBebop(styleId);
 
     while (beat < totalBeats) {
       var bar = Math.floor(beat / barLen);
       var cells = pattern.cells.slice();
-      if (rng() > 0.65) {
+      if (rng() > (bebop ? 0.45 : 0.65)) {
         cells = cells.map(function (c) {
           return {
             degrees: c.degrees.map(function (d) { return (d + 1) % 7; }),
@@ -237,28 +300,36 @@
         var atBeat = beat + barBeat;
         var seg = chords.chordAtBeat(timeline, atBeat);
         var dur = cell.dur;
+        if (bebop && cell.role === "pass" && rng() > 0.5) dur = Math.max(0.25, dur * 0.85);
         if (barBeat + dur > barLen) dur = barLen - barBeat;
         if (atBeat + dur > totalBeats) dur = totalBeats - atBeat;
 
         var midi;
+        var targetHint = seg ? nearestMidi(seg.tones, prevMidi, 5) : null;
         if (seg && cell.role === "target") {
-          midi = chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId);
+          midi = chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId, styleId);
         } else if (seg) {
           var degree = pick(rng, cell.degrees);
-          midi = scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi);
-          if (rng() > 0.55) {
-            midi = nearestMidi(seg.tones, prevMidi, 5);
+          if (bebop) {
+            midi = bebopPassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, targetHint);
+          } else {
+            midi = scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi);
+            if (rng() > 0.55) {
+              midi = nearestMidi(seg.tones, prevMidi, 5);
+            }
           }
         } else {
           var deg = pick(rng, cell.degrees);
-          midi = scalePassMidi(tonicPc, modeId, deg, bar, rng, prevMidi);
+          midi = bebop
+            ? bebopPassMidi(tonicPc, modeId, deg, bar, rng, prevMidi, null)
+            : scalePassMidi(tonicPc, modeId, deg, bar, rng, prevMidi);
         }
 
         notes.push({
           midi: midi,
           startBeat: atBeat,
           durationBeats: dur,
-          velocity: velocityForRole(cell.role, rng, intensity),
+          velocity: velocityForRole(cell.role, rng, intensity, styleId),
           degree: cell.degrees[0],
           role: cell.role,
           chordIndex: seg ? seg.index : null,
@@ -327,10 +398,13 @@
     var notes = [];
     var beat = 0;
     var barLen = 4;
+    var prevMidi = null;
+
+    var bebop = isBebop(styleId);
 
     for (var bar = 0; bar < bars; bar++) {
       var cells = pattern.cells.slice();
-      if (rng() > 0.65) {
+      if (rng() > (bebop ? 0.45 : 0.65)) {
         cells = cells.map(function (c) {
           return { degrees: c.degrees.map(function (d) { return (d + 1) % 7; }), dur: c.dur, role: c.role };
         });
@@ -338,28 +412,37 @@
 
       var barBeat = 0;
       var ci = 0;
+      var nextTargetDegree = cells[(ci + 2) % cells.length].degrees[0];
       while (barBeat < barLen && ci < cells.length) {
         var cell = cells[ci % cells.length];
         var degree = pick(rng, cell.degrees);
         var oct = octaveDrift(degree, bar, rng);
-        var midi = scale.degreeToMidi(tonicPc, modeId, degree, oct);
-
-        if (rng() > 0.82 && cell.role === "pass") {
-          midi += rng() > 0.5 ? 1 : -1;
+        var midi;
+        if (bebop && cell.role === "pass") {
+          var targetMidi = scale.degreeToMidi(tonicPc, modeId, nextTargetDegree, oct);
+          midi = bebopPassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, targetMidi);
+        } else {
+          midi = scale.degreeToMidi(tonicPc, modeId, degree, oct);
+          if (rng() > 0.82 && cell.role === "pass") {
+            midi += rng() > 0.5 ? 1 : -1;
+          }
         }
 
         var dur = cell.dur;
+        if (bebop && cell.role === "pass" && rng() > 0.5) dur = Math.max(0.25, dur * 0.85);
         if (barBeat + dur > barLen) dur = barLen - barBeat;
 
         notes.push({
           midi: midi,
           startBeat: beat + barBeat,
           durationBeats: dur,
-          velocity: velocityForRole(cell.role, rng, intensity),
+          velocity: velocityForRole(cell.role, rng, intensity, styleId),
           degree: degree,
           role: cell.role,
         });
 
+        prevMidi = midi;
+        if (cell.role === "target") nextTargetDegree = degree;
         barBeat += dur;
         ci += 1;
       }
