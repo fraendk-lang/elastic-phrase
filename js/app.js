@@ -15,6 +15,9 @@
     playing: false,
     soundPreset: "flute",
     reverb: 0.28,
+    swing: 58,
+    humanize: 35,
+    chordInputText: "",
     euclidean: {
       enabled: false,
       pulses: 5,
@@ -62,6 +65,22 @@
   var reverbVal = document.getElementById("reverbVal");
   var shareLinkBtn = document.getElementById("shareLinkBtn");
   var shareToast = document.getElementById("shareToast");
+  var chordInput = document.getElementById("chordInput");
+  var applyChordsBtn = document.getElementById("applyChordsBtn");
+  var chordParseError = document.getElementById("chordParseError");
+  var swingSlider = document.getElementById("swingSlider");
+  var swingVal = document.getElementById("swingVal");
+  var humanizeSlider = document.getElementById("humanizeSlider");
+  var humanizeVal = document.getElementById("humanizeVal");
+
+  function feelOptions() {
+    return { swing: state.swing, humanize: state.humanize, seed: state.seed };
+  }
+
+  function feltNotes(notes) {
+    if (!notes || !window.ElasticFeel) return notes || [];
+    return ElasticFeel.applyFeel(notes, feelOptions());
+  }
 
   function euclidDrawOpts(res) {
     if (res && res.meta && res.meta.euclidean) {
@@ -179,6 +198,11 @@
     bpmInput.value = String(state.bpm);
     reverbSlider.value = String(Math.round(state.reverb * 100));
     reverbVal.textContent = Math.round(state.reverb * 100) + "%";
+    swingSlider.value = String(state.swing);
+    swingVal.textContent = state.swing + "%";
+    humanizeSlider.value = String(state.humanize);
+    humanizeVal.textContent = state.humanize + "%";
+    if (chordInput) chordInput.value = state.chordInputText || "";
     if (window.ElasticSound) ElasticSound.setReverbMix(state.reverb);
     euclidPulses.value = String(state.euclidean.pulses);
     euclidSteps.value = String(state.euclidean.steps);
@@ -199,9 +223,14 @@
     state.seed = shared.seed;
     state.soundPreset = shared.soundPreset;
     state.reverb = shared.reverb;
+    state.swing = shared.swing == null ? 58 : shared.swing;
+    state.humanize = shared.humanize == null ? 35 : shared.humanize;
     state.euclidean = shared.euclidean;
     state.chords = shared.chords;
     state.importLabel = shared.importLabel || "";
+    state.chordInputText = shared.chords
+      ? ElasticChords.progressionTextFromChords(shared.chords)
+      : "";
     importBanner.hidden = !state.importLabel;
     if (state.importLabel) {
       importBanner.textContent = "Akkordfolge: " + state.importLabel + " · " + state.bpm + " BPM";
@@ -236,6 +265,35 @@
     barsVal.textContent = "auto (Folge)";
   }
 
+  function setChordProgression(chords, label, source) {
+    state.chords = chords;
+    state.importLabel = label || ElasticChords.formatProgression(chords);
+    state.chordInputText = ElasticChords.progressionTextFromChords(chords);
+    if (chordInput) chordInput.value = state.chordInputText;
+    if (chordParseError) chordParseError.hidden = true;
+    importBanner.hidden = false;
+    importBanner.textContent =
+      (source || "Akkordfolge") + ": " + state.importLabel + " · " + state.bpm + " BPM";
+    renderChords();
+    generatePhrase();
+  }
+
+  function applyChordsFromText() {
+    var text = chordInput ? chordInput.value : "";
+    state.chordInputText = text;
+    var parsed = ElasticChords.parseProgressionText(text);
+    if (!parsed.ok) {
+      if (chordParseError) {
+        chordParseError.hidden = false;
+        chordParseError.textContent = parsed.errors.length
+          ? "Unbekannter Akkord: " + parsed.errors.map(function (e) { return e.token; }).join(", ")
+          : "Bitte mindestens einen Akkord eingeben.";
+      }
+      return;
+    }
+    setChordProgression(parsed.chords, null, "Eingegebene Folge");
+  }
+
   function applyComposerImport(data) {
     state.chords = data.chords;
     state.bpm = data.bpm;
@@ -250,17 +308,15 @@
         b.classList.toggle("active", b.dataset.mode === state.modeId);
       });
     }
-    state.importLabel = ElasticChords.formatProgression(state.chords);
-    importBanner.hidden = false;
-    importBanner.textContent =
-      "Import aus Elastic Composer: " + state.importLabel + " · " + state.bpm + " BPM";
-    renderChords();
-    generatePhrase();
+    setChordProgression(data.chords, ElasticChords.formatProgression(data.chords), "Import aus Elastic Composer");
   }
 
   function clearChords() {
     state.chords = null;
     state.importLabel = "";
+    state.chordInputText = "";
+    if (chordInput) chordInput.value = "";
+    if (chordParseError) chordParseError.hidden = true;
     importBanner.hidden = true;
     barsSlider.disabled = false;
     barsVal.textContent = state.bars + " Takte";
@@ -272,7 +328,7 @@
     var btn = e.target.closest("[data-style]");
     if (!btn) return;
     state.styleId = btn.dataset.style;
-    document.querySelectorAll(".style-btn").forEach(function (b) {
+    document.querySelectorAll(".style-btn[data-style]").forEach(function (b) {
       b.classList.toggle("active", b.dataset.style === state.styleId);
     });
   });
@@ -300,6 +356,12 @@
   });
 
   clearChordsBtn.addEventListener("click", clearChords);
+  applyChordsBtn.addEventListener("click", applyChordsFromText);
+  if (chordInput) {
+    chordInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) applyChordsFromText();
+    });
+  }
   openComposerBtn.addEventListener("click", function () {
     window.open(ElasticHandoff.COMPOSER_APP_URL, "_blank", "noopener,noreferrer");
   });
@@ -334,6 +396,16 @@
     state.reverb = Number(reverbSlider.value) / 100;
     reverbVal.textContent = reverbSlider.value + "%";
     if (window.ElasticSound) ElasticSound.setReverbMix(state.reverb);
+  });
+
+  swingSlider.addEventListener("input", function () {
+    state.swing = Number(swingSlider.value);
+    swingVal.textContent = state.swing + "%";
+  });
+
+  humanizeSlider.addEventListener("input", function () {
+    state.humanize = Number(humanizeSlider.value);
+    humanizeVal.textContent = state.humanize + "%";
   });
 
   document.body.addEventListener(
@@ -442,6 +514,7 @@
     setPlayingUi(true);
     playBtn.disabled = true;
     ElasticPlayback.playPhrase(state.result.notes, state.bpm, {
+      feel: feelOptions(),
       onEnd: function () {
         setPlayingUi(false);
         playBtn.disabled = false;
@@ -464,7 +537,7 @@
       "-" +
       state.modeId +
       ".mid";
-    ElasticMidi.downloadMidi(state.result.notes, state.bpm, name);
+    ElasticMidi.downloadMidi(feltNotes(state.result.notes), state.bpm, name);
   });
 
   shareComposerBtn.addEventListener("click", function () {

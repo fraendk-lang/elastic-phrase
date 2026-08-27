@@ -78,6 +78,14 @@
     #pianoRoll.compact { height: 180px; }
     .note-list { font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); line-height: 1.6; max-height: 120px; overflow: auto; margin-top: 10px; }
     .chord-row { display: flex; gap: 8px; flex-wrap: wrap; min-height: 32px; align-items: center; }
+    .chord-input-row { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .chord-input-row textarea {
+      width: 100%; min-height: 56px; resize: vertical; padding: 10px 12px; border-radius: 10px;
+      border: 1px solid var(--border-strong); background: var(--bg-alt); color: var(--text);
+      font-family: var(--font-mono); font-size: 13px; line-height: 1.5;
+    }
+    .chord-input-row textarea:focus { outline: none; border-color: var(--blue); }
+    .chord-parse-error { font-size: 12px; color: #fb7185; font-family: var(--font-mono); min-height: 1.2em; }
     .chord-chip { font-family: var(--font-mono); font-size: 13px; background: var(--bg-alt); border: 1px solid var(--border-strong); border-radius: 8px; padding: 6px 10px; color: var(--blue); }
     .import-banner { margin-top: 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(77,155,255,.35); background: rgba(77,155,255,.08); font-size: 13px; color: var(--text-dim); }
     .share-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 10px 16px; border-radius: 10px; background: rgba(0,255,136,.12); border: 1px solid rgba(0,255,136,.35); color: var(--green); font-family: var(--font-mono); font-size: 12px; z-index: 50; }
@@ -94,7 +102,7 @@
         <div class="brand-dot"></div>
         <div class="brand-name">Elastic Universe</div>
       </div>
-      <div class="badge">v1.4</div>
+      <div class="badge">v1.5</div>
     </header>
 
     <h1>Elastic <span>Phrase</span></h1>
@@ -104,11 +112,19 @@
       <div class="panel-title">Akkordfolge</div>
       <div class="chord-row" id="chordRow"><span class="mode-hint" style="margin:0">Keine Akkordfolge — freie Skalen-Melodie.</span></div>
       <div class="import-banner" id="importBanner" hidden></div>
+      <div class="chord-input-row">
+        <label class="panel-title" style="margin:0" for="chordInput">Akkorde eingeben</label>
+        <textarea id="chordInput" placeholder="Am7 | D7 | Gmaj7 | Cmaj7" spellcheck="false"></textarea>
+        <div class="toolbar" style="margin:0">
+          <button class="ghost" id="applyChordsBtn">Folge übernehmen</button>
+        </div>
+        <div class="chord-parse-error" id="chordParseError" hidden></div>
+      </div>
       <div class="toolbar" style="margin-top:12px">
         <button class="ghost" id="clearChordsBtn" disabled>Folge entfernen</button>
         <button class="ghost" id="openComposerBtn">↗ Elastic Composer</button>
       </div>
-      <div class="mode-hint">In Composer: Progression bauen → <b>→ Elastic Phrase</b>. Zielton-Noten folgen dann den Akkordtönen.</div>
+      <div class="mode-hint">Text oder Import aus Composer — Zielton-Noten folgen den Akkordtönen.</div>
     </div>
 
     <div class="panel">
@@ -157,9 +173,10 @@
       <div class="presets" id="stylePicker">
         <button class="style-btn active" data-style="modal-jazz">Modal Jazz</button>
         <button class="style-btn" data-style="bebop">Bebop</button>
+        <button class="style-btn" data-style="pop-hook">Pop Hook</button>
         <button class="style-btn" data-style="blues">Blues (Basis)</button>
       </div>
-      <div class="mode-hint">Bebop: Achtel-Linien, chromatische Annäherungen, Betonung auf Terz/Septime über Akkorden.</div>
+      <div class="mode-hint">Pop Hook: kurzes 2-Takt-Motiv, Pentatonik, Wiederholung mit Variation.</div>
       <div class="slider-row">
         <label>LÄNGE</label>
         <input type="range" id="barsSlider" min="2" max="8" value="4">
@@ -179,6 +196,21 @@
         <button class="ghost" id="shareLinkBtn" title="Einstellungen + Seed als Link kopieren">⎘ Link</button>
         <button class="ghost" id="seedBtn" title="Neuer Zufallssamen">🎲 Seed</button>
       </div>
+    </div>
+
+    <div class="panel" id="feelPanel">
+      <div class="panel-title">Feel</div>
+      <div class="slider-row">
+        <label>SWING</label>
+        <input type="range" id="swingSlider" min="0" max="100" value="58">
+        <span class="slider-val" id="swingVal">58%</span>
+      </div>
+      <div class="slider-row">
+        <label>HUMANIZE</label>
+        <input type="range" id="humanizeSlider" min="0" max="100" value="35">
+        <span class="slider-val" id="humanizeVal">35%</span>
+      </div>
+      <div class="mode-hint">Swing verschiebt Offbeats; Humanize variiert Timing und Velocity bei Playback und MIDI-Export.</div>
     </div>
 
     <div class="panel">
@@ -225,6 +257,7 @@
   <script defer src="/js/soundfont-config.js"></script>
   <script type="module" src="/js/sound-engine.js"></script>
   <script defer src="/js/playback.js"></script>
+  <script defer src="/js/feel.js"></script>
   <script defer src="/js/handoff.js"></script>
   <script defer src="/js/app.js"></script>
 </body>

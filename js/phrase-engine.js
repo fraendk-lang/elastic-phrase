@@ -54,6 +54,21 @@
         { degrees: [4], dur: 0.5, role: "pass" },
       ],
     },
+    "pop-hook": {
+      bars: 4,
+      cells: [
+        { degrees: [0], dur: 0.5, role: "target" },
+        { degrees: [2], dur: 0.5, role: "pass" },
+        { degrees: [4], dur: 1, role: "target" },
+        { degrees: [2], dur: 0.5, role: "pass" },
+        { degrees: [0], dur: 0.5, role: "target" },
+        { degrees: [4], dur: 1, role: "target" },
+        { degrees: [5], dur: 0.5, role: "pass" },
+        { degrees: [4], dur: 0.5, role: "target" },
+        { degrees: [2], dur: 1, role: "target" },
+        { degrees: [0], dur: 1, role: "target" },
+      ],
+    },
   };
 
   function mulberry32(seed) {
@@ -74,6 +89,8 @@
     var base = role === "target" ? 92 : 72;
     if (styleId === "bebop") {
       base = role === "target" ? 98 : 64;
+    } else if (styleId === "pop-hook") {
+      base = role === "target" ? 96 : 76;
     }
     var spread = Math.round((intensity || 0.5) * 18);
     if (styleId === "bebop") spread += 6;
@@ -82,6 +99,31 @@
 
   function isBebop(styleId) {
     return styleId === "bebop";
+  }
+
+  function isPopHook(styleId) {
+    return styleId === "pop-hook";
+  }
+
+  function popHookDegrees() {
+    return [0, 2, 4, 5, 6];
+  }
+
+  function popHookPickDegree(rng, cellDegrees) {
+    var pent = popHookDegrees();
+    var pool = cellDegrees.filter(function (d) {
+      return pent.indexOf(d) !== -1;
+    });
+    return pick(rng, pool.length ? pool : pent);
+  }
+
+  function popHookMidi(tonicPc, modeId, degree, bar, rng, prevMidi) {
+    var oct = bar % 2 === 0 ? 5 : 5;
+    var midi = scale.degreeToMidi(tonicPc, modeId, degree, oct);
+    if (prevMidi != null && Math.abs(midi - prevMidi) > 9) {
+      midi += midi > prevMidi ? -12 : 12;
+    }
+    return midi;
   }
 
   function chromaticNeighbor(midi, direction) {
@@ -279,11 +321,20 @@
     var prevMidi = null;
     var beat = 0;
     var bebop = isBebop(styleId);
+    var popHook = isPopHook(styleId);
 
     while (beat < totalBeats) {
       var bar = Math.floor(beat / barLen);
       var cells = pattern.cells.slice();
-      if (rng() > (bebop ? 0.45 : 0.65)) {
+      if (popHook && bar >= 2 && rng() > 0.45) {
+        cells = cells.map(function (c) {
+          return {
+            degrees: c.degrees.map(function (d) { return (d + 2) % 7; }),
+            dur: c.dur,
+            role: c.role,
+          };
+        });
+      } else if (rng() > (bebop ? 0.45 : popHook ? 0.55 : 0.65)) {
         cells = cells.map(function (c) {
           return {
             degrees: c.degrees.map(function (d) { return (d + 1) % 7; }),
@@ -309,9 +360,11 @@
         if (seg && cell.role === "target") {
           midi = chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId, styleId);
         } else if (seg) {
-          var degree = pick(rng, cell.degrees);
+          var degree = popHook ? popHookPickDegree(rng, cell.degrees) : pick(rng, cell.degrees);
           if (bebop) {
             midi = bebopPassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, targetHint);
+          } else if (popHook) {
+            midi = popHookMidi(tonicPc, modeId, degree, bar, rng, prevMidi);
           } else {
             midi = scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi);
             if (rng() > 0.55) {
@@ -319,10 +372,12 @@
             }
           }
         } else {
-          var deg = pick(rng, cell.degrees);
+          var deg = popHook ? popHookPickDegree(rng, cell.degrees) : pick(rng, cell.degrees);
           midi = bebop
             ? bebopPassMidi(tonicPc, modeId, deg, bar, rng, prevMidi, null)
-            : scalePassMidi(tonicPc, modeId, deg, bar, rng, prevMidi);
+            : popHook
+              ? popHookMidi(tonicPc, modeId, deg, bar, rng, prevMidi)
+              : scalePassMidi(tonicPc, modeId, deg, bar, rng, prevMidi);
         }
 
         notes.push({
@@ -401,10 +456,19 @@
     var prevMidi = null;
 
     var bebop = isBebop(styleId);
+    var popHook = isPopHook(styleId);
 
     for (var bar = 0; bar < bars; bar++) {
       var cells = pattern.cells.slice();
-      if (rng() > (bebop ? 0.45 : 0.65)) {
+      if (popHook && bar >= 2 && rng() > 0.45) {
+        cells = cells.map(function (c) {
+          return {
+            degrees: c.degrees.map(function (d) { return (d + 2) % 7; }),
+            dur: c.dur,
+            role: c.role,
+          };
+        });
+      } else if (rng() > (bebop ? 0.45 : popHook ? 0.55 : 0.65)) {
         cells = cells.map(function (c) {
           return { degrees: c.degrees.map(function (d) { return (d + 1) % 7; }), dur: c.dur, role: c.role };
         });
@@ -415,12 +479,14 @@
       var nextTargetDegree = cells[(ci + 2) % cells.length].degrees[0];
       while (barBeat < barLen && ci < cells.length) {
         var cell = cells[ci % cells.length];
-        var degree = pick(rng, cell.degrees);
+        var degree = popHook ? popHookPickDegree(rng, cell.degrees) : pick(rng, cell.degrees);
         var oct = octaveDrift(degree, bar, rng);
         var midi;
         if (bebop && cell.role === "pass") {
           var targetMidi = scale.degreeToMidi(tonicPc, modeId, nextTargetDegree, oct);
           midi = bebopPassMidi(tonicPc, modeId, degree, bar, rng, prevMidi, targetMidi);
+        } else if (popHook) {
+          midi = popHookMidi(tonicPc, modeId, degree, bar, rng, prevMidi);
         } else {
           midi = scale.degreeToMidi(tonicPc, modeId, degree, oct);
           if (rng() > 0.82 && cell.role === "pass") {

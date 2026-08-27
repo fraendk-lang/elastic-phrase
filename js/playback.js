@@ -24,6 +24,9 @@
     stop();
     if (!notes || !notes.length) return Promise.resolve(0);
     callbacks = callbacks || {};
+    if (window.ElasticFeel && callbacks.feel) {
+      notes = ElasticFeel.applyFeel(notes, callbacks.feel);
+    }
 
     return ensureContext().then(function (audio) {
       var beatSec = 60 / Math.max(40, Math.min(240, bpm || 100));

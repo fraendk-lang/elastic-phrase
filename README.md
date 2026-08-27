@@ -4,6 +4,12 @@ Monophonic melody generator — sibling to [Elastic Composer](https://elasticcom
 
 **Live:** [elastic-phrase.vercel.app](https://elastic-phrase.vercel.app)
 
+## v0.6 — Akkord-Input, Feel, Pop Hook
+
+- **Akkord-Text** — `Am7 | D7 | Gmaj7 | C` direkt eingeben (ohne Composer)
+- **Feel-Panel** — Swing + Humanize für Playback und MIDI-Export
+- **Pop Hook** — pentatonisches 2-Takt-Motiv mit Variation
+
 ## v0.5 — Bebop + Share Link
 
 - **Bebop-Stil** — Achtel-Linien, chromatische Annäherungen, Terz/Septime-Betonung
@@ -68,3 +74,4 @@ Planned: **elasticphrase.app** (purchase early September 2026). Setup steps: [`d
 - v1.1: chord-aware generation + Composer handoff (`ElasticContext`)
 - v1.2: Web MIDI preview, more styles (pop hook)
 - v1.4: Bebop style + share links ✓
+- v1.5: chord text input, swing/humanize, pop hook ✓

@@ -90,6 +90,8 @@
         return e;
       });
     }
+    if (state.swing != null && state.swing !== 58) payload.sw = state.swing;
+    if (state.humanize != null && state.humanize !== 35) payload.hu = state.humanize;
     return payload;
   }
 
@@ -120,6 +122,8 @@
       seed: payload.sd == null ? Date.now() & 0xffff : payload.sd,
       soundPreset: payload.sf || "flute",
       reverb: payload.rv == null ? 0.28 : Math.max(0, Math.min(100, payload.rv)) / 100,
+      swing: payload.sw == null ? 58 : Math.max(0, Math.min(100, payload.sw)),
+      humanize: payload.hu == null ? 35 : Math.max(0, Math.min(100, payload.hu)),
       euclidean: {
         enabled: false,
         pulses: 5,

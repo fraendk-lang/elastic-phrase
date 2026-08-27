@@ -107,6 +107,12 @@ test("bebop chord-aware favors chord tones on targets", function () {
   assert.ok(res.notes.length > 8);
 });
 
+test("pop hook style uses pentatonic motion", function () {
+  var res = engine.generatePhrase({ seed: 44, bars: 4, styleId: "pop-hook" });
+  assert.equal(res.meta.styleId, "pop-hook");
+  assert.ok(res.notes.length >= 8);
+});
+
 test("euclidean phrase generates rhythm hits", function () {
   var res = engine.generatePhrase({
     seed: 3,
