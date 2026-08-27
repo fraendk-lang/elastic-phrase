@@ -2,6 +2,7 @@
   "use strict";
 
   var scale = global.ElasticScale;
+  var chords = global.ElasticChords;
 
   /** Modal jazz: quartal motion, target tones on 1 & 3, passing tones on offbeats */
   var PATTERNS = {
@@ -60,19 +61,161 @@
     return 5;
   }
 
+  function nearestMidi(candidates, prevMidi, preferRegister) {
+    var base = preferRegister != null ? preferRegister * 12 : 60;
+    var best = candidates[0];
+    var bestScore = Infinity;
+    candidates.forEach(function (pc) {
+      for (var oct = 3; oct <= 6; oct++) {
+        var midi = oct * 12 + pc;
+        var score = Math.abs(midi - (prevMidi || base)) + Math.abs(midi - 66) * 0.15;
+        if (score < bestScore) {
+          bestScore = score;
+          best = midi;
+        }
+      }
+    });
+    return best;
+  }
+
+  function chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId) {
+    var tones = seg.tones;
+    var weighted = [];
+    tones.forEach(function (pc, i) {
+      var w = i === 0 ? 3 : 1;
+      for (var k = 0; k < w; k++) weighted.push(pc);
+    });
+    var pc = pick(rng, weighted);
+    return nearestMidi([pc], prevMidi, 5);
+  }
+
+  function scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi) {
+    var oct = octaveDrift(degree, bar, rng);
+    var midi = scale.degreeToMidi(tonicPc, modeId, degree, oct);
+    if (rng() > 0.82) midi += rng() > 0.5 ? 1 : -1;
+    if (prevMidi != null && Math.abs(midi - prevMidi) > 7) {
+      midi += midi > prevMidi ? -12 : 12;
+    }
+    return midi;
+  }
+
+  function totalBeatsFromChords(chordList) {
+    return (chordList || []).reduce(function (sum, c) {
+      return sum + (c.beats || 4);
+    }, 0);
+  }
+
+  function generateFromChords(opts, pattern, rng, intensity) {
+    var timeline = chords.buildTimeline(opts.chords);
+    var totalBeats = totalBeatsFromChords(opts.chords);
+    var barLen = 4;
+    var bars = Math.max(1, Math.ceil(totalBeats / barLen));
+    var tonicPc = scale.clampPc(opts.tonicPc == null ? 0 : opts.tonicPc);
+    var modeId = opts.modeId || "dorian";
+    var notes = [];
+    var prevMidi = null;
+    var beat = 0;
+
+    while (beat < totalBeats) {
+      var bar = Math.floor(beat / barLen);
+      var cells = pattern.cells.slice();
+      if (rng() > 0.65) {
+        cells = cells.map(function (c) {
+          return {
+            degrees: c.degrees.map(function (d) { return (d + 1) % 7; }),
+            dur: c.dur,
+            role: c.role,
+          };
+        });
+      }
+
+      var barBeat = 0;
+      var ci = 0;
+      while (barBeat < barLen && beat + barBeat < totalBeats && ci < cells.length * 2) {
+        var cell = cells[ci % cells.length];
+        var atBeat = beat + barBeat;
+        var seg = chords.chordAtBeat(timeline, atBeat);
+        var dur = cell.dur;
+        if (barBeat + dur > barLen) dur = barLen - barBeat;
+        if (atBeat + dur > totalBeats) dur = totalBeats - atBeat;
+
+        var midi;
+        if (seg && cell.role === "target") {
+          midi = chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId);
+        } else if (seg) {
+          var degree = pick(rng, cell.degrees);
+          midi = scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi);
+          if (rng() > 0.55) {
+            midi = nearestMidi(seg.tones, prevMidi, 5);
+          }
+        } else {
+          var deg = pick(rng, cell.degrees);
+          midi = scalePassMidi(tonicPc, modeId, deg, bar, rng, prevMidi);
+        }
+
+        notes.push({
+          midi: midi,
+          startBeat: atBeat,
+          durationBeats: dur,
+          velocity: velocityForRole(cell.role, rng, intensity),
+          degree: cell.degrees[0],
+          role: cell.role,
+          chordIndex: seg ? seg.index : null,
+        });
+
+        prevMidi = midi;
+        barBeat += dur;
+        ci += 1;
+      }
+      beat += barLen;
+    }
+
+    return {
+      notes: notes,
+      meta: {
+        tonicPc: tonicPc,
+        modeId: modeId,
+        styleId: opts.styleId || "modal-jazz",
+        bars: bars,
+        beatsPerBar: barLen,
+        totalBeats: totalBeats,
+        keyLabel: scale.keyLabel(tonicPc, modeId),
+        chordAware: true,
+        progression: opts.chords.map(function (c) {
+          return chords.chordLabel(c);
+        }).join(" – "),
+      },
+    };
+  }
+
   /**
-   * @param {{tonicPc:number, modeId:string, styleId:string, bars?:number, seed?:number, intensity?:number}} opts
+   * @param {{tonicPc:number, modeId:string, styleId:string, bars?:number, seed?:number, intensity?:number, chords?:Array}} opts
    * @returns {{notes:Array, meta:object}}
    */
   function generatePhrase(opts) {
+    opts = opts || {};
     var tonicPc = scale.clampPc(opts.tonicPc == null ? 0 : opts.tonicPc);
     var modeId = opts.modeId || "dorian";
     var styleId = opts.styleId || "modal-jazz";
     var pattern = PATTERNS[styleId] || PATTERNS["modal-jazz"];
-    var bars = opts.bars || pattern.bars || 4;
     var rng = mulberry32(opts.seed != null ? opts.seed : Date.now() & 0xffff);
     var intensity = opts.intensity == null ? 0.55 : opts.intensity;
 
+    if (opts.chords && opts.chords.length) {
+      return generateFromChords(
+        {
+          tonicPc: tonicPc,
+          modeId: modeId,
+          styleId: styleId,
+          chords: opts.chords,
+        },
+        pattern,
+        rng,
+        intensity
+      );
+    }
+
+    var bars = opts.bars || pattern.bars || 4;
     var notes = [];
     var beat = 0;
     var barLen = 4;
@@ -124,12 +267,14 @@
         bars: bars,
         beatsPerBar: barLen,
         keyLabel: scale.keyLabel(tonicPc, modeId),
+        chordAware: false,
       },
     };
   }
 
-  function buildElasticContext(result, bpm) {
-    return {
+  function buildElasticContext(result, bpm, extra) {
+    extra = extra || {};
+    var ctx = {
       v: 1,
       app: "elastic-phrase",
       bpm: Math.round(bpm || 100),
@@ -138,6 +283,15 @@
         return { m: n.midi, s: n.startBeat, d: n.durationBeats, v: n.velocity };
       }),
     };
+    if (extra.chords && extra.chords.length) {
+      ctx.chords = extra.chords.map(function (c) {
+        return { r: c.rootPc, q: c.qualityId, b: c.bassPc, t: c.beats !== 4 ? c.beats : undefined };
+      }).map(function (entry) {
+        if (entry.t === undefined) delete entry.t;
+        return entry;
+      });
+    }
+    return ctx;
   }
 
   var api = {

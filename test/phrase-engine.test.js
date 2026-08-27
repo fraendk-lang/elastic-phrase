@@ -4,8 +4,10 @@ var test = require("node:test");
 var assert = require("node:assert/strict");
 
 var scale = require("../js/scale.js");
+var chords = require("../js/chords.js");
 var engine = require("../js/phrase-engine.js");
 var midi = require("../js/midi-export.js");
+var handoff = require("../js/handoff.js");
 
 test("scale degreeToMidi stays in mode", function () {
   var pcs = scale.scalePcs(0, "dorian");
@@ -48,4 +50,31 @@ test("buildElasticContext roundtrip shape", function () {
   var ctx = engine.buildElasticContext(res, 100);
   assert.equal(ctx.app, "elastic-phrase");
   assert.equal(ctx.phrase.length, res.notes.length);
+});
+
+test("chord-aware phrase marks meta and uses chord tones", function () {
+  var res = engine.generatePhrase({
+    seed: 11,
+    tonicPc: 0,
+    modeId: "dorian",
+    chords: [
+      { rootPc: 0, qualityId: "m", bassPc: 0, beats: 4 },
+      { rootPc: 7, qualityId: "7", bassPc: 7, beats: 4 },
+    ],
+  });
+  assert.equal(res.meta.chordAware, true);
+  assert.ok(res.notes.length > 4);
+  var targets = res.notes.filter(function (n) { return n.role === "target"; });
+  assert.ok(targets.length > 0);
+});
+
+test("importFromLocation parses composer query", function () {
+  var payload = { b: 100, p: [{ r: 0, q: "m", b: 0 }] };
+  var loc = {
+    search: "?from=composer&bpm=100",
+    hash: "#c=" + encodeURIComponent(JSON.stringify(payload)),
+  };
+  var data = handoff.importFromLocation(loc);
+  assert.ok(data);
+  assert.equal(data.chords.length, 1);
 });

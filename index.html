@@ -75,6 +75,10 @@
     .bpm-ctrl { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); }
     #pianoRoll { width: 100%; height: 180px; border-radius: 10px; border: 1px solid var(--border-strong); display: block; background: #111; }
     .note-list { font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); line-height: 1.6; max-height: 120px; overflow: auto; margin-top: 10px; }
+    .chord-row { display: flex; gap: 8px; flex-wrap: wrap; min-height: 32px; align-items: center; }
+    .chord-chip { font-family: var(--font-mono); font-size: 13px; background: var(--bg-alt); border: 1px solid var(--border-strong); border-radius: 8px; padding: 6px 10px; color: var(--blue); }
+    .import-banner { margin-top: 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(77,155,255,.35); background: rgba(77,155,255,.08); font-size: 13px; color: var(--text-dim); }
+    button.playing { border-color: var(--orange); color: var(--orange); background: rgba(255,140,66,.08); }
     footer { margin-top: 28px; color: var(--text-faint); font-size: 12px; font-family: var(--font-mono); line-height: 1.7; }
     footer b { color: var(--text-dim); }
     @media (max-width: 640px) { body { padding: 20px 12px 60px; } h1 { font-size: 26px; } }
@@ -87,11 +91,22 @@
         <div class="brand-dot"></div>
         <div class="brand-name">Elastic Universe</div>
       </div>
-      <div class="badge">v0.1 POC</div>
+      <div class="badge">v1.1</div>
     </header>
 
     <h1>Elastic <span>Phrase</span></h1>
-    <p class="subtitle">Monophone Melodie-Generierung — Tonart, Kirchentonart und Stil wählen, Phrase erzeugen, als MIDI exportieren. Regelbasiert, kein LLM.</p>
+    <p class="subtitle">Monophone Melodie-Generierung — Tonart, Modus und Stil wählen, optional Akkordfolge aus Elastic Composer, Phrase erzeugen, anhören und als MIDI exportieren.</p>
+
+    <div class="panel" id="chordPanel">
+      <div class="panel-title">Akkordfolge</div>
+      <div class="chord-row" id="chordRow"><span class="mode-hint" style="margin:0">Keine Akkordfolge — freie Skalen-Melodie.</span></div>
+      <div class="import-banner" id="importBanner" hidden></div>
+      <div class="toolbar" style="margin-top:12px">
+        <button class="ghost" id="clearChordsBtn" disabled>Folge entfernen</button>
+        <button class="ghost" id="openComposerBtn">↗ Elastic Composer</button>
+      </div>
+      <div class="mode-hint">In Composer: Progression bauen → <b>→ Elastic Phrase</b>. Zielton-Noten folgen dann den Akkordtönen.</div>
+    </div>
 
     <div class="panel">
       <div class="panel-title">Tonart</div>
@@ -122,8 +137,10 @@
       </div>
       <div class="toolbar">
         <button class="primary" id="generateBtn">✦ Phrase generieren</button>
+        <button id="playBtn" disabled>▶ Abspielen</button>
         <span class="bpm-ctrl"><label>BPM</label><input type="number" id="bpmInput" min="40" max="240" value="100"></span>
         <button id="exportMidiBtn" disabled>⇩ MIDI exportieren</button>
+        <button class="ghost" id="shareComposerBtn" disabled title="Phrase + Folge an Composer senden">→ Composer</button>
         <button class="ghost" id="seedBtn" title="Neuer Zufallssamen">🎲 Seed</button>
       </div>
     </div>
@@ -138,15 +155,17 @@
     </div>
 
     <footer>
-      <div><b>Elastic Phrase</b> — Geschwister zu Elastic Composer. Bridge zu Composer folgt in v1.1.</div>
+      <div><b>Elastic Phrase</b> — Geschwister zu <a href="https://elasticcomposer.app" style="color:var(--green)">Elastic Composer</a>.</div>
       <div style="margin-top:6px">Läuft vollständig im Browser. Export: Standard-MIDI (.mid), monophon.</div>
     </footer>
   </div>
 
   <script defer src="/js/scale.js"></script>
+  <script defer src="/js/chords.js"></script>
   <script defer src="/js/midi-export.js"></script>
   <script defer src="/js/phrase-engine.js"></script>
   <script defer src="/js/piano-roll.js"></script>
+  <script defer src="/js/playback.js"></script>
   <script defer src="/js/handoff.js"></script>
   <script defer src="/js/app.js"></script>
 </body>

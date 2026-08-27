@@ -9,7 +9,10 @@
     intensity: 0.55,
     bpm: 100,
     seed: Date.now() & 0xffff,
+    chords: null,
+    importLabel: "",
     result: null,
+    playing: false,
   };
 
   var tonicPicker = document.getElementById("tonicPicker");
@@ -20,12 +23,18 @@
   var intensitySlider = document.getElementById("intensitySlider");
   var intensityVal = document.getElementById("intensityVal");
   var generateBtn = document.getElementById("generateBtn");
+  var playBtn = document.getElementById("playBtn");
   var exportMidiBtn = document.getElementById("exportMidiBtn");
+  var shareComposerBtn = document.getElementById("shareComposerBtn");
   var seedBtn = document.getElementById("seedBtn");
   var bpmInput = document.getElementById("bpmInput");
   var phraseMeta = document.getElementById("phraseMeta");
   var noteList = document.getElementById("noteList");
   var pianoRoll = document.getElementById("pianoRoll");
+  var chordRow = document.getElementById("chordRow");
+  var importBanner = document.getElementById("importBanner");
+  var clearChordsBtn = document.getElementById("clearChordsBtn");
+  var openComposerBtn = document.getElementById("openComposerBtn");
 
   function buildTonicPicker() {
     ElasticScale.NOTE_NAMES.forEach(function (name, pc) {
@@ -59,6 +68,62 @@
     });
   }
 
+  function renderChords() {
+    chordRow.innerHTML = "";
+    if (!state.chords || !state.chords.length) {
+      var hint = document.createElement("span");
+      hint.className = "mode-hint";
+      hint.style.margin = "0";
+      hint.textContent = "Keine Akkordfolge — freie Skalen-Melodie.";
+      chordRow.appendChild(hint);
+      clearChordsBtn.disabled = true;
+      barsSlider.disabled = false;
+      return;
+    }
+
+    state.chords.forEach(function (chord) {
+      var chip = document.createElement("span");
+      chip.className = "chord-chip";
+      chip.textContent = ElasticChords.chordLabel(chord);
+      chordRow.appendChild(chip);
+    });
+    clearChordsBtn.disabled = false;
+    barsSlider.disabled = true;
+    barsVal.textContent = "auto (Folge)";
+  }
+
+  function applyComposerImport(data) {
+    state.chords = data.chords;
+    state.bpm = data.bpm;
+    bpmInput.value = String(state.bpm);
+    if (data.key) {
+      state.tonicPc = data.key.tonicPc;
+      state.modeId = data.key.modeId || "major";
+      document.querySelectorAll(".key-btn").forEach(function (b) {
+        b.classList.toggle("active", Number(b.dataset.pc) === state.tonicPc);
+      });
+      document.querySelectorAll(".mode-btn").forEach(function (b) {
+        b.classList.toggle("active", b.dataset.mode === state.modeId);
+      });
+    }
+    state.importLabel = ElasticChords.formatProgression(state.chords);
+    importBanner.hidden = false;
+    importBanner.textContent =
+      "Import aus Elastic Composer: " + state.importLabel + " · " + state.bpm + " BPM";
+    renderChords();
+    generatePhrase();
+  }
+
+  function clearChords() {
+    state.chords = null;
+    state.importLabel = "";
+    importBanner.hidden = true;
+    barsSlider.disabled = false;
+    barsVal.textContent = state.bars + " Takte";
+    renderChords();
+    generatePhrase();
+  }
+
   stylePicker.addEventListener("click", function (e) {
     var btn = e.target.closest("[data-style]");
     if (!btn) return;
@@ -69,6 +134,7 @@
   });
 
   barsSlider.addEventListener("input", function () {
+    if (state.chords && state.chords.length) return;
     state.bars = Number(barsSlider.value);
     barsVal.textContent = state.bars + " Takte";
   });
@@ -85,8 +151,27 @@
 
   seedBtn.addEventListener("click", function () {
     state.seed = (Math.random() * 0xffff) | 0;
-    if (state.result) generatePhrase();
+    stopPlayback();
+    generatePhrase();
   });
+
+  clearChordsBtn.addEventListener("click", clearChords);
+  openComposerBtn.addEventListener("click", function () {
+    window.open(ElasticHandoff.COMPOSER_APP_URL, "_blank", "noopener,noreferrer");
+  });
+
+  function stopPlayback() {
+    ElasticPlayback.stop();
+    state.playing = false;
+    playBtn.textContent = "▶ Abspielen";
+    playBtn.classList.remove("playing");
+  }
+
+  function setPlayingUi(playing) {
+    state.playing = playing;
+    playBtn.textContent = playing ? "■ Stop" : "▶ Abspielen";
+    playBtn.classList.toggle("playing", playing);
+  }
 
   function renderResult() {
     var res = state.result;
@@ -94,17 +179,21 @@
       phraseMeta.textContent = "Noch keine Phrase — oben generieren.";
       noteList.textContent = "";
       exportMidiBtn.disabled = true;
+      playBtn.disabled = true;
+      shareComposerBtn.disabled = true;
       ElasticPianoRoll.drawPianoRoll(pianoRoll, [], { bars: state.bars });
       return;
     }
 
+    var modeTag = res.meta.chordAware ? " · akkordbewusst" : "";
     phraseMeta.innerHTML =
       "Tonart: <b>" +
       res.meta.keyLabel +
       "</b> · " +
       res.notes.length +
       " Noten · Seed " +
-      state.seed;
+      state.seed +
+      modeTag;
 
     var lines = res.notes.slice(0, 24).map(function (n, i) {
       var beat = (n.startBeat + 1).toFixed(1);
@@ -121,26 +210,52 @@
     if (res.notes.length > 24) lines.push("… +" + (res.notes.length - 24) + " weitere");
     noteList.textContent = lines.join("\n");
 
+    var rollBars = res.meta.chordAware
+      ? Math.ceil((res.meta.totalBeats || res.meta.bars * 4) / 4)
+      : res.meta.bars;
+
     ElasticPianoRoll.drawPianoRoll(pianoRoll, res.notes, {
-      bars: res.meta.bars,
+      bars: rollBars,
       beatsPerBar: res.meta.beatsPerBar,
     });
     exportMidiBtn.disabled = false;
+    playBtn.disabled = false;
+    shareComposerBtn.disabled = false;
   }
 
   function generatePhrase() {
-    state.result = ElasticPhraseEngine.generatePhrase({
+    stopPlayback();
+    var opts = {
       tonicPc: state.tonicPc,
       modeId: state.modeId,
       styleId: state.styleId,
-      bars: state.bars,
       intensity: state.intensity,
       seed: state.seed,
-    });
+    };
+    if (state.chords && state.chords.length) {
+      opts.chords = state.chords;
+    } else {
+      opts.bars = state.bars;
+    }
+    state.result = ElasticPhraseEngine.generatePhrase(opts);
     renderResult();
   }
 
   generateBtn.addEventListener("click", generatePhrase);
+
+  playBtn.addEventListener("click", function () {
+    if (!state.result) return;
+    if (state.playing) {
+      stopPlayback();
+      return;
+    }
+    setPlayingUi(true);
+    ElasticPlayback.playPhrase(state.result.notes, state.bpm, {
+      onEnd: function () {
+        setPlayingUi(false);
+      },
+    });
+  });
 
   exportMidiBtn.addEventListener("click", function () {
     if (!state.result) return;
@@ -153,9 +268,24 @@
     ElasticMidi.downloadMidi(state.result.notes, state.bpm, name);
   });
 
+  shareComposerBtn.addEventListener("click", function () {
+    if (!state.result) return;
+    var ctx = ElasticPhraseEngine.buildElasticContext(state.result, state.bpm, {
+      chords: state.chords,
+    });
+    window.open(ElasticHandoff.buildComposerUrl(ctx), "_blank", "noopener,noreferrer");
+  });
+
   buildTonicPicker();
   buildModePicker();
-  generatePhrase();
+  renderChords();
+
+  var imported = ElasticHandoff.importFromLocation();
+  if (imported) {
+    applyComposerImport(imported);
+  } else {
+    generatePhrase();
+  }
 
   window.addEventListener("resize", function () {
     if (state.result) renderResult();

@@ -4,6 +4,13 @@ Monophonic melody generator — sibling to [Elastic Composer](https://elasticcom
 
 **Live:** [elastic-phrase.vercel.app](https://elastic-phrase.vercel.app)
 
+## v0.2 / v1.1
+
+- **▶ Abspielen** — Web-Audio-Vorschau (monophon)
+- **Akkordfolge** — Import aus Elastic Composer (`→ Elastic Phrase`)
+- **Akkordbewusste Melodie** — Zielton-Noten auf Akkordtönen
+- **→ Composer** — Phrase + Folge als `ElasticContext` zurücksenden
+
 ## v0.1 (POC)
 
 - **Input:** tonic, church mode, style (Modal Jazz / Blues basis)
