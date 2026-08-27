@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Elastic Phrase — Melody Generator</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --bg-alt: #111111;
+      --surface: #1a1a1a;
+      --surface-2: #151515;
+      --border: rgba(255, 255, 255, 0.10);
+      --border-strong: rgba(255, 255, 255, 0.18);
+      --text: #ffffff;
+      --text-dim: rgba(255, 255, 255, 0.70);
+      --text-faint: rgba(255, 255, 255, 0.40);
+      --green: #00FF88;
+      --orange: #ff8c42;
+      --purple: #b14bff;
+      --blue: #4d9bff;
+      --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--font-sans); }
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse 900px 500px at 15% -10%, rgba(0, 255, 136, 0.10), transparent 60%),
+        radial-gradient(ellipse 900px 600px at 100% 10%, rgba(177, 75, 255, 0.10), transparent 60%),
+        var(--bg);
+      padding: 32px 20px 80px;
+    }
+    .wrap { max-width: 880px; margin: 0 auto; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 12px; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 12px var(--green); }
+    .brand-name { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.12em; color: var(--text-dim); text-transform: uppercase; }
+    .badge { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border-strong); color: var(--purple); text-transform: uppercase; }
+    h1 { font-size: 32px; font-weight: 700; margin: 18px 0 4px; letter-spacing: -0.01em; }
+    h1 span { color: var(--green); }
+    .subtitle { color: var(--text-dim); font-size: 15px; margin: 0 0 28px; line-height: 1.5; max-width: 640px; }
+    .panel { background: linear-gradient(180deg, var(--surface), var(--surface-2)); border: 1px solid var(--border); border-radius: 16px; padding: 22px; margin-bottom: 20px; }
+    .panel-title { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); margin: 0 0 14px; }
+    .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .presets button { padding: 7px 12px; font-family: var(--font-mono); font-size: 12px; background: transparent; border: 1px solid var(--border-strong); border-radius: 10px; color: var(--text); cursor: pointer; }
+    .presets button:hover { border-color: var(--green); color: var(--green); }
+    .key-btn.active { border-color: var(--green); color: var(--green); background: rgba(0, 255, 136, 0.08); }
+    .mode-btn.active { border-color: var(--blue); color: var(--blue); background: rgba(77, 155, 255, 0.08); }
+    .style-btn.active { border-color: var(--purple); color: var(--purple); background: rgba(177, 75, 255, 0.08); }
+    button { font-family: var(--font-sans); font-weight: 600; font-size: 14px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--bg-alt); color: var(--text); padding: 12px 18px; cursor: pointer; transition: all 0.15s ease; }
+    button:hover { border-color: var(--green); color: var(--green); }
+    button.primary { background: var(--green); color: #04140b; border-color: var(--green); }
+    button.primary:hover { filter: brightness(1.08); color: #04140b; }
+    button.ghost { background: transparent; color: var(--text-faint); border-color: var(--border); padding: 8px 12px; font-size: 12px; }
+    button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
+    .row-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .key-readout { font-family: var(--font-mono); font-size: 13px; color: var(--text-dim); }
+    .key-readout b { color: var(--green); font-weight: 600; }
+    .mode-hint { margin-top: 12px; font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+    .slider-row { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+    .slider-row label { font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); white-space: nowrap; }
+    input[type="range"] { flex: 1; appearance: none; height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--green), var(--purple)); outline: none; }
+    input[type="range"]::-webkit-slider-thumb { appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 3px solid var(--bg); box-shadow: 0 0 0 2px var(--border-strong); cursor: pointer; }
+    .slider-val { font-family: var(--font-mono); font-size: 13px; color: var(--text); min-width: 72px; text-align: right; }
+    input[type="number"]#bpmInput { width: 54px; background: var(--bg-alt); border: 1px solid var(--border-strong); border-radius: 8px; color: var(--text); font-family: var(--font-mono); font-size: 13px; padding: 6px 8px; }
+    .bpm-ctrl { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); }
+    #pianoRoll { width: 100%; height: 180px; border-radius: 10px; border: 1px solid var(--border-strong); display: block; background: #111; }
+    .note-list { font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); line-height: 1.6; max-height: 120px; overflow: auto; margin-top: 10px; }
+    footer { margin-top: 28px; color: var(--text-faint); font-size: 12px; font-family: var(--font-mono); line-height: 1.7; }
+    footer b { color: var(--text-dim); }
+    @media (max-width: 640px) { body { padding: 20px 12px 60px; } h1 { font-size: 26px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="brand-dot"></div>
+        <div class="brand-name">Elastic Universe</div>
+      </div>
+      <div class="badge">v0.1 POC</div>
+    </header>
+
+    <h1>Elastic <span>Phrase</span></h1>
+    <p class="subtitle">Monophone Melodie-Generierung — Tonart, Kirchentonart und Stil wählen, Phrase erzeugen, als MIDI exportieren. Regelbasiert, kein LLM.</p>
+
+    <div class="panel">
+      <div class="panel-title">Tonart</div>
+      <div class="presets" id="tonicPicker"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Modus</div>
+      <div class="presets" id="modePicker"></div>
+      <div class="mode-hint">v1 fokussiert auf modale Jazz-Skalen — Dorisch und Mixolydisch sind die Standard-Presets.</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Stil</div>
+      <div class="presets" id="stylePicker">
+        <button class="style-btn active" data-style="modal-jazz">Modal Jazz</button>
+        <button class="style-btn" data-style="blues">Blues (Basis)</button>
+      </div>
+      <div class="slider-row">
+        <label>LÄNGE</label>
+        <input type="range" id="barsSlider" min="2" max="8" value="4">
+        <span class="slider-val" id="barsVal">4 Takte</span>
+      </div>
+      <div class="slider-row">
+        <label>INTENSITÄT</label>
+        <input type="range" id="intensitySlider" min="0" max="100" value="55">
+        <span class="slider-val" id="intensityVal">55%</span>
+      </div>
+      <div class="toolbar">
+        <button class="primary" id="generateBtn">✦ Phrase generieren</button>
+        <span class="bpm-ctrl"><label>BPM</label><input type="number" id="bpmInput" min="40" max="240" value="100"></span>
+        <button id="exportMidiBtn" disabled>⇩ MIDI exportieren</button>
+        <button class="ghost" id="seedBtn" title="Neuer Zufallssamen">🎲 Seed</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="row-between">
+        <div class="panel-title" style="margin:0">Phrase</div>
+        <div class="key-readout" id="phraseMeta">Noch keine Phrase — oben generieren.</div>
+      </div>
+      <canvas id="pianoRoll" aria-label="Piano-Roll Vorschau"></canvas>
+      <div class="note-list" id="noteList"></div>
+    </div>
+
+    <footer>
+      <div><b>Elastic Phrase</b> — Geschwister zu Elastic Composer. Bridge zu Composer folgt in v1.1.</div>
+      <div style="margin-top:6px">Läuft vollständig im Browser. Export: Standard-MIDI (.mid), monophon.</div>
+    </footer>
+  </div>
+
+  <script defer src="/js/scale.js"></script>
+  <script defer src="/js/midi-export.js"></script>
+  <script defer src="/js/phrase-engine.js"></script>
+  <script defer src="/js/piano-roll.js"></script>
+  <script defer src="/js/handoff.js"></script>
+  <script defer src="/js/app.js"></script>
+</body>
+</html>
