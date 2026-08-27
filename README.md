@@ -4,6 +4,12 @@ Monophonic melody generator — sibling to [Elastic Composer](https://elasticcom
 
 **Live:** [elastic-phrase.vercel.app](https://elastic-phrase.vercel.app)
 
+## v0.3 / v1.2
+
+- **Flöte (MusyngKite CDN)** — Soundfont-Preview mit Synth-Fallback
+- **Euklid-Rhythmus** — Pulses/Steps/Rotation + Skala-Euklid für Stufen
+- **Composer-Rückweg** — `#p=` Import in Elastic Composer
+
 ## v0.2 / v1.1
 
 - **▶ Abspielen** — Web-Audio-Vorschau (monophon)

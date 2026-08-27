@@ -105,6 +105,107 @@
     }, 0);
   }
 
+  function activeDegreesFromPattern(degreePattern) {
+    var list = [];
+    for (var d = 0; d < degreePattern.length; d++) {
+      if (degreePattern[d]) list.push(d);
+    }
+    return list.length ? list : [0, 2, 4];
+  }
+
+  function generateEuclideanCore(opts, rng, intensity, timeline) {
+    var euclid = global.ElasticEuclid;
+    if (!euclid) throw new Error("ElasticEuclid missing");
+    var tonicPc = scale.clampPc(opts.tonicPc == null ? 0 : opts.tonicPc);
+    var modeId = opts.modeId || "dorian";
+    var bars = opts.bars || 4;
+    var barLen = 4;
+    var e = opts.euclidean || {};
+    var pulses = Math.max(1, Math.min(16, e.pulses == null ? 5 : e.pulses));
+    var steps = Math.max(4, Math.min(16, e.steps == null ? 8 : e.steps));
+    var rotation = e.rotation == null ? 0 : e.rotation;
+    var scalePulses = Math.max(1, Math.min(7, e.scalePulses == null ? 4 : e.scalePulses));
+    var scaleRotation = e.scaleRotation == null ? 0 : e.scaleRotation;
+
+    var rhythm = euclid.euclidean(pulses, steps, rotation);
+    var degreePattern = euclid.euclidean(scalePulses, 7, scaleRotation);
+    var activeDegrees = activeDegreesFromPattern(degreePattern);
+    var stepDur = barLen / steps;
+    var notes = [];
+    var prevMidi = null;
+    var pulseIdx = 0;
+    var totalBeats = timeline ? totalBeatsFromChords(opts.chords) : bars * barLen;
+    var beatCap = timeline ? totalBeats : bars * barLen;
+
+    for (var bar = 0; bar < bars && bar * barLen < beatCap; bar++) {
+      for (var step = 0; step < steps; step++) {
+        var atBeat = bar * barLen + step * stepDur;
+        if (atBeat >= beatCap) break;
+        if (!rhythm[step % rhythm.length]) continue;
+
+        var seg = timeline ? chords.chordAtBeat(timeline, atBeat) : null;
+        var midi;
+        if (seg) {
+          midi = chordTargetMidi(seg, rng, prevMidi, tonicPc, modeId);
+        } else {
+          var degree = activeDegrees[pulseIdx % activeDegrees.length];
+          if (rng() > 0.72) {
+            degree = activeDegrees[Math.floor(rng() * activeDegrees.length)];
+          }
+          midi = scalePassMidi(tonicPc, modeId, degree, bar, rng, prevMidi);
+        }
+
+        notes.push({
+          midi: midi,
+          startBeat: atBeat,
+          durationBeats: Math.max(stepDur * 0.85, 0.125),
+          velocity: velocityForRole(pulseIdx % 2 === 0 ? "target" : "pass", rng, intensity),
+          degree: activeDegrees[pulseIdx % activeDegrees.length],
+          role: "euclid",
+          chordIndex: seg ? seg.index : null,
+        });
+        prevMidi = midi;
+        pulseIdx += 1;
+      }
+    }
+
+    return {
+      notes: notes,
+      meta: {
+        tonicPc: tonicPc,
+        modeId: modeId,
+        styleId: "euclidean",
+        bars: timeline ? Math.ceil(totalBeats / barLen) : bars,
+        beatsPerBar: barLen,
+        totalBeats: beatCap,
+        keyLabel: scale.keyLabel(tonicPc, modeId),
+        chordAware: !!timeline,
+        euclidean: {
+          pulses: pulses,
+          steps: steps,
+          rotation: rotation,
+          scalePulses: scalePulses,
+          scaleRotation: scaleRotation,
+          rhythmLabel: euclid.patternLabel(rhythm),
+          scaleLabel: euclid.patternLabel(degreePattern),
+        },
+        progression: timeline
+          ? opts.chords.map(function (c) { return chords.chordLabel(c); }).join(" – ")
+          : undefined,
+      },
+    };
+  }
+
+  function generateEuclidean(opts, rng, intensity) {
+    return generateEuclideanCore(opts, rng, intensity, null);
+  }
+
+  function generateEuclideanWithChords(opts, rng, intensity) {
+    var total = totalBeatsFromChords(opts.chords);
+    var next = Object.assign({}, opts, { bars: Math.max(1, Math.ceil(total / 4)) });
+    return generateEuclideanCore(next, rng, intensity, chords.buildTimeline(opts.chords));
+  }
+
   function generateFromChords(opts, pattern, rng, intensity) {
     var timeline = chords.buildTimeline(opts.chords);
     var totalBeats = totalBeatsFromChords(opts.chords);
@@ -200,6 +301,13 @@
     var pattern = PATTERNS[styleId] || PATTERNS["modal-jazz"];
     var rng = mulberry32(opts.seed != null ? opts.seed : Date.now() & 0xffff);
     var intensity = opts.intensity == null ? 0.55 : opts.intensity;
+
+    if (opts.euclidean && opts.euclidean.enabled) {
+      if (opts.chords && opts.chords.length) {
+        return generateEuclideanWithChords(opts, rng, intensity);
+      }
+      return generateEuclidean(opts, rng, intensity);
+    }
 
     if (opts.chords && opts.chords.length) {
       return generateFromChords(

@@ -91,7 +91,7 @@
         <div class="brand-dot"></div>
         <div class="brand-name">Elastic Universe</div>
       </div>
-      <div class="badge">v1.1</div>
+      <div class="badge">v1.2</div>
     </header>
 
     <h1>Elastic <span>Phrase</span></h1>
@@ -119,6 +119,36 @@
       <div class="mode-hint">v1 fokussiert auf modale Jazz-Skalen — Dorisch und Mixolydisch sind die Standard-Presets.</div>
     </div>
 
+    <div class="panel" id="euclidPanel">
+      <div class="panel-title">Euklid-Rhythmus</div>
+      <div class="presets">
+        <button class="style-btn active" id="euclidToggleBtn" data-euclid="off">Aus</button>
+        <button class="style-btn" id="euclidOnBtn" data-euclid="on">An</button>
+      </div>
+      <div class="slider-row">
+        <label>PULSES</label>
+        <input type="range" id="euclidPulses" min="1" max="12" value="5">
+        <span class="slider-val" id="euclidPulsesVal">5</span>
+      </div>
+      <div class="slider-row">
+        <label>STEPS</label>
+        <input type="range" id="euclidSteps" min="4" max="16" value="8">
+        <span class="slider-val" id="euclidStepsVal">8</span>
+      </div>
+      <div class="slider-row">
+        <label>ROTATION</label>
+        <input type="range" id="euclidRotation" min="0" max="15" value="0">
+        <span class="slider-val" id="euclidRotationVal">0</span>
+      </div>
+      <div class="slider-row">
+        <label>SKALA-PULSES</label>
+        <input type="range" id="euclidScalePulses" min="1" max="7" value="4">
+        <span class="slider-val" id="euclidScalePulsesVal">4 / 7</span>
+      </div>
+      <div class="mode-hint">Rhythmus: <code id="euclidRhythmPreview" style="font-family:var(--font-mono);color:var(--green)">·····</code> · Skala: <code id="euclidScalePreview" style="font-family:var(--font-mono);color:var(--blue)">····</code></div>
+      <div class="mode-hint">E(5,8) verteilt Schläge gleichmäßig; Skala-Euklid wählt welche Stufen der Tonleiter betont werden.</div>
+    </div>
+
     <div class="panel">
       <div class="panel-title">Stil</div>
       <div class="presets" id="stylePicker">
@@ -143,6 +173,7 @@
         <button class="ghost" id="shareComposerBtn" disabled title="Phrase + Folge an Composer senden">→ Composer</button>
         <button class="ghost" id="seedBtn" title="Neuer Zufallssamen">🎲 Seed</button>
       </div>
+      <div class="mode-hint" id="soundLoadStatus" style="margin-top:10px;color:var(--orange)"></div>
     </div>
 
     <div class="panel">
@@ -161,10 +192,13 @@
   </div>
 
   <script defer src="/js/scale.js"></script>
+  <script defer src="/js/euclid.js"></script>
   <script defer src="/js/chords.js"></script>
   <script defer src="/js/midi-export.js"></script>
   <script defer src="/js/phrase-engine.js"></script>
   <script defer src="/js/piano-roll.js"></script>
+  <script defer src="/js/soundfont-config.js"></script>
+  <script type="module" src="/js/sound-engine.js"></script>
   <script defer src="/js/playback.js"></script>
   <script defer src="/js/handoff.js"></script>
   <script defer src="/js/app.js"></script>

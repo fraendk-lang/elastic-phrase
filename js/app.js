@@ -13,6 +13,14 @@
     importLabel: "",
     result: null,
     playing: false,
+    euclidean: {
+      enabled: false,
+      pulses: 5,
+      steps: 8,
+      rotation: 0,
+      scalePulses: 4,
+      scaleRotation: 0,
+    },
   };
 
   var tonicPicker = document.getElementById("tonicPicker");
@@ -35,6 +43,35 @@
   var importBanner = document.getElementById("importBanner");
   var clearChordsBtn = document.getElementById("clearChordsBtn");
   var openComposerBtn = document.getElementById("openComposerBtn");
+  var euclidToggleBtn = document.getElementById("euclidToggleBtn");
+  var euclidOnBtn = document.getElementById("euclidOnBtn");
+  var euclidPulses = document.getElementById("euclidPulses");
+  var euclidSteps = document.getElementById("euclidSteps");
+  var euclidRotation = document.getElementById("euclidRotation");
+  var euclidScalePulses = document.getElementById("euclidScalePulses");
+  var euclidPulsesVal = document.getElementById("euclidPulsesVal");
+  var euclidStepsVal = document.getElementById("euclidStepsVal");
+  var euclidRotationVal = document.getElementById("euclidRotationVal");
+  var euclidScalePulsesVal = document.getElementById("euclidScalePulsesVal");
+  var euclidRhythmPreview = document.getElementById("euclidRhythmPreview");
+  var euclidScalePreview = document.getElementById("euclidScalePreview");
+
+  function updateEuclidPreview() {
+    var rhythm = ElasticEuclid.euclidean(state.euclidean.pulses, state.euclidean.steps, state.euclidean.rotation);
+    var scalePat = ElasticEuclid.euclidean(state.euclidean.scalePulses, 7, state.euclidean.scaleRotation);
+    euclidRhythmPreview.textContent = ElasticEuclid.patternLabel(rhythm);
+    euclidScalePreview.textContent = ElasticEuclid.patternLabel(scalePat);
+    euclidPulsesVal.textContent = String(state.euclidean.pulses);
+    euclidStepsVal.textContent = String(state.euclidean.steps);
+    euclidRotationVal.textContent = String(state.euclidean.rotation);
+    euclidScalePulsesVal.textContent = state.euclidean.scalePulses + " / 7";
+  }
+
+  function setEuclidEnabled(on) {
+    state.euclidean.enabled = on;
+    euclidToggleBtn.classList.toggle("active", !on);
+    euclidOnBtn.classList.toggle("active", on);
+  }
 
   function buildTonicPicker() {
     ElasticScale.NOTE_NAMES.forEach(function (name, pc) {
@@ -160,6 +197,25 @@
     window.open(ElasticHandoff.COMPOSER_APP_URL, "_blank", "noopener,noreferrer");
   });
 
+  euclidToggleBtn.addEventListener("click", function () { setEuclidEnabled(false); });
+  euclidOnBtn.addEventListener("click", function () { setEuclidEnabled(true); });
+  euclidPulses.addEventListener("input", function () {
+    state.euclidean.pulses = Number(euclidPulses.value);
+    updateEuclidPreview();
+  });
+  euclidSteps.addEventListener("input", function () {
+    state.euclidean.steps = Number(euclidSteps.value);
+    updateEuclidPreview();
+  });
+  euclidRotation.addEventListener("input", function () {
+    state.euclidean.rotation = Number(euclidRotation.value);
+    updateEuclidPreview();
+  });
+  euclidScalePulses.addEventListener("input", function () {
+    state.euclidean.scalePulses = Number(euclidScalePulses.value);
+    updateEuclidPreview();
+  });
+
   function stopPlayback() {
     ElasticPlayback.stop();
     state.playing = false;
@@ -186,6 +242,9 @@
     }
 
     var modeTag = res.meta.chordAware ? " · akkordbewusst" : "";
+    if (res.meta.euclidean) {
+      modeTag += " · E(" + res.meta.euclidean.pulses + "," + res.meta.euclidean.steps + ")";
+    }
     phraseMeta.innerHTML =
       "Tonart: <b>" +
       res.meta.keyLabel +
@@ -237,6 +296,9 @@
     } else {
       opts.bars = state.bars;
     }
+    if (state.euclidean.enabled) {
+      opts.euclidean = state.euclidean;
+    }
     state.result = ElasticPhraseEngine.generatePhrase(opts);
     renderResult();
   }
@@ -279,6 +341,7 @@
   buildTonicPicker();
   buildModePicker();
   renderChords();
+  updateEuclidPreview();
 
   var imported = ElasticHandoff.importFromLocation();
   if (imported) {

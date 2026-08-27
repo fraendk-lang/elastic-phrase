@@ -4,6 +4,8 @@ var test = require("node:test");
 var assert = require("node:assert/strict");
 
 var scale = require("../js/scale.js");
+var euclid = require("../js/euclid.js");
+global.ElasticEuclid = euclid;
 var chords = require("../js/chords.js");
 var engine = require("../js/phrase-engine.js");
 var midi = require("../js/midi-export.js");
@@ -77,4 +79,14 @@ test("importFromLocation parses composer query", function () {
   var data = handoff.importFromLocation(loc);
   assert.ok(data);
   assert.equal(data.chords.length, 1);
+});
+
+test("euclidean phrase generates rhythm hits", function () {
+  var res = engine.generatePhrase({
+    seed: 3,
+    bars: 2,
+    euclidean: { enabled: true, pulses: 5, steps: 8, rotation: 0, scalePulses: 4 },
+  });
+  assert.equal(res.meta.euclidean.pulses, 5);
+  assert.ok(res.notes.length >= 5);
 });
