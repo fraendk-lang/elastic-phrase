@@ -55,6 +55,7 @@
     .key-btn.active { border-color: var(--green); color: var(--green); background: rgba(0, 255, 136, 0.08); }
     .mode-btn.active { border-color: var(--blue); color: var(--blue); background: rgba(77, 155, 255, 0.08); }
     .style-btn.active { border-color: var(--purple); color: var(--purple); background: rgba(177, 75, 255, 0.08); }
+    .sound-btn.active { border-color: var(--orange); color: var(--orange); background: rgba(255, 140, 66, 0.08); }
     button { font-family: var(--font-sans); font-weight: 600; font-size: 14px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--bg-alt); color: var(--text); padding: 12px 18px; cursor: pointer; transition: all 0.15s ease; }
     button:hover { border-color: var(--green); color: var(--green); }
     button.primary { background: var(--green); color: #04140b; border-color: var(--green); }
@@ -92,7 +93,7 @@
         <div class="brand-dot"></div>
         <div class="brand-name">Elastic Universe</div>
       </div>
-      <div class="badge">v1.2</div>
+      <div class="badge">v1.3</div>
     </header>
 
     <h1>Elastic <span>Phrase</span></h1>
@@ -174,7 +175,24 @@
         <button class="ghost" id="shareComposerBtn" disabled title="Phrase + Folge an Composer senden">→ Composer</button>
         <button class="ghost" id="seedBtn" title="Neuer Zufallssamen">🎲 Seed</button>
       </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Klang</div>
+      <div class="presets" id="soundPresetPicker">
+        <button class="sound-btn active" data-sound="flute">Flöte</button>
+        <button class="sound-btn" data-sound="grand">Konzertflügel</button>
+        <button class="sound-btn" data-sound="upright">Klavier</button>
+        <button class="sound-btn" data-sound="rhodes">Rhodes</button>
+        <button class="sound-btn" data-sound="pad">Pad</button>
+      </div>
+      <div class="slider-row">
+        <label>HALL</label>
+        <input type="range" id="reverbSlider" min="0" max="100" value="28">
+        <span class="slider-val" id="reverbVal">28%</span>
+      </div>
       <div class="mode-hint" id="soundLoadStatus" style="margin-top:10px;color:var(--orange)"></div>
+      <div class="mode-hint">MusyngKite Soundfont — lokal gehostet, offline-fähig nach erstem Laden.</div>
     </div>
 
     <div class="panel">

@@ -4,6 +4,13 @@ Monophonic melody generator — sibling to [Elastic Composer](https://elasticcom
 
 **Live:** [elastic-phrase.vercel.app](https://elastic-phrase.vercel.app)
 
+## v0.4 — MusyngKite Sound
+
+- **5 Instrumente:** Flöte, Konzertflügel, Klavier, Rhodes, Pad
+- **Lokal gehostet** unter `/assets/soundfonts/MusyngKite/` (wie Composer)
+- **Hall-Regler** + Preload beim ersten Klick
+- Playback wartet auf Soundfont-Laden (kein Synth-Race mehr)
+
 ## v0.3 / v1.2
 
 - **Flöte (MusyngKite CDN)** — Soundfont-Preview mit Synth-Fallback

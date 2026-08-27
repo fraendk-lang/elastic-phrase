@@ -13,6 +13,8 @@
     importLabel: "",
     result: null,
     playing: false,
+    soundPreset: "flute",
+    reverb: 0.28,
     euclidean: {
       enabled: false,
       pulses: 5,
@@ -55,6 +57,9 @@
   var euclidScalePulsesVal = document.getElementById("euclidScalePulsesVal");
   var euclidRhythmPreview = document.getElementById("euclidRhythmPreview");
   var euclidScalePreview = document.getElementById("euclidScalePreview");
+  var soundPresetPicker = document.getElementById("soundPresetPicker");
+  var reverbSlider = document.getElementById("reverbSlider");
+  var reverbVal = document.getElementById("reverbVal");
 
   function euclidDrawOpts(res) {
     if (res && res.meta && res.meta.euclidean) {
@@ -258,6 +263,30 @@
     updateEuclidPreview();
   });
 
+  soundPresetPicker.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-sound]");
+    if (!btn || !window.ElasticSound) return;
+    state.soundPreset = btn.dataset.sound;
+    ElasticSound.setPreset(state.soundPreset);
+  });
+
+  reverbSlider.addEventListener("input", function () {
+    state.reverb = Number(reverbSlider.value) / 100;
+    reverbVal.textContent = reverbSlider.value + "%";
+    if (window.ElasticSound) ElasticSound.setReverbMix(state.reverb);
+  });
+
+  document.body.addEventListener(
+    "pointerdown",
+    function warmSoundOnce() {
+      if (!window.ElasticSound) return;
+      ElasticPlayback.ensureContext().then(function (audio) {
+        ElasticSound.ensureReady(audio, state.soundPreset);
+      });
+    },
+    { once: true }
+  );
+
   function stopPlayback() {
     ElasticPlayback.stop();
     state.playing = false;
@@ -351,11 +380,20 @@
       return;
     }
     setPlayingUi(true);
+    playBtn.disabled = true;
     ElasticPlayback.playPhrase(state.result.notes, state.bpm, {
       onEnd: function () {
         setPlayingUi(false);
+        playBtn.disabled = false;
       },
-    });
+    })
+      .catch(function () {
+        setPlayingUi(false);
+        playBtn.disabled = false;
+      })
+      .then(function () {
+        if (state.playing) playBtn.disabled = false;
+      });
   });
 
   exportMidiBtn.addEventListener("click", function () {
