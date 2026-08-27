@@ -7,6 +7,14 @@ var scale = require("../js/scale.js");
 global.ElasticScale = scale;
 var chords = require("../js/chords.js");
 
+test("parseProgressionText reads space-separated chords", function () {
+  var res = chords.parseProgressionText("Am7 Dm7 Em7 G#7");
+  assert.equal(res.ok, true);
+  assert.equal(res.chords.length, 4);
+  assert.equal(res.chords[3].rootPc, 8);
+  assert.equal(res.chords[3].qualityId, "7");
+});
+
 test("parseProgressionText reads pipe-separated chords", function () {
   var res = chords.parseProgressionText("Am7 | D7 | Gmaj7 | C");
   assert.equal(res.ok, true);

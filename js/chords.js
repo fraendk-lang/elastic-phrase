@@ -114,7 +114,7 @@
   }
 
   /**
-   * @param {string} text e.g. "Am7 | D7 | Gmaj7 | C"
+   * @param {string} text e.g. "Am7 | D7 | Gmaj7 | C" or "Am7 Dm7 Em7 G#7"
    * @returns {{chords:Array, errors:Array, ok:boolean}}
    */
   function parseProgressionText(text, opts) {
@@ -123,7 +123,7 @@
       return { chords: [], errors: [], ok: false };
     }
     var parts = String(text)
-      .split(/[\|,;\n]+/)
+      .split(/[\|,;\n\s]+/)
       .map(function (s) { return s.trim(); })
       .filter(Boolean);
     var chordsOut = [];
